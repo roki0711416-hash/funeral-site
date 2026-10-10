@@ -1,7 +1,7 @@
 /* 返礼屋 — PC専用レイアウト (768px〜) */
 @media (min-width: 768px) {
   :root {
-    --header-h: 80px;
+    --header-h: 88px;
   }
 
   body {
@@ -12,11 +12,30 @@
     display: none !important;
   }
 
+  .header-inner {
+    padding: 0 2.5vw;
+  }
+
   .site-nav {
     display: flex !important;
     align-items: center;
     gap: 1.75rem;
-    margin-right: auto;
+    flex: 1;
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .nav-list {
+    width: 100%;
+    justify-content: space-evenly;
+    gap: 0.5rem 1.25rem;
+  }
+
+  .nav-list a {
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    padding: 0.45rem 0.4rem;
+    white-space: nowrap;
   }
 
   .nav-drawer-close {

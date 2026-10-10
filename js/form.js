@@ -8,13 +8,22 @@
   const stepEls = document.querySelectorAll('[data-step-panel]');
   const stepIndicators = document.querySelectorAll('.step');
   const stepLines = document.querySelectorAll('.step-line');
-  let current = 1;
+  const stepsWrap = document.querySelector('.steps');
+  const calendarRoot = document.getElementById('calendar-root');
+  const formTitle = document.getElementById('reserve-form-title');
+  let current = 0;
 
   function showStep(n) {
     current = n;
     stepEls.forEach((el) => {
       el.hidden = Number(el.dataset.stepPanel) !== n;
     });
+    if (stepsWrap) stepsWrap.hidden = n === 0;
+    if (calendarRoot) calendarRoot.hidden = n !== 0;
+    if (formTitle) {
+      formTitle.textContent =
+        n === 0 ? '日付・時間の選択' : n === 3 ? '予約完了' : n === 2 ? '内容の確認' : 'ご予約情報の入力';
+    }
     stepIndicators.forEach((el, i) => {
       const num = i + 1;
       el.classList.toggle('is-active', num === n);
@@ -23,6 +32,10 @@
     stepLines.forEach((el, i) => {
       el.classList.toggle('is-done', i + 1 < n);
     });
+    if (n === 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     window.scrollTo({ top: form.offsetTop - 80, behavior: 'smooth' });
   }
 
@@ -50,6 +63,34 @@
       const el = document.getElementById(id);
       if (el) el.textContent = val;
     });
+    const picked = document.getElementById('picked-summary');
+    if (picked) {
+      picked.innerHTML =
+        '<p><strong>施設</strong>　' +
+        facility +
+        '</p><p><strong>希望日</strong>　' +
+        map['confirm-date'] +
+        '</p><p><strong>ご利用時間</strong>　' +
+        map['confirm-time'] +
+        '</p>';
+    }
+    const done = document.getElementById('complete-summary');
+    if (done) {
+      done.innerHTML =
+        '<div><dt>施設</dt><dd>' +
+        facility +
+        '</dd></div><div><dt>希望日</dt><dd>' +
+        map['confirm-date'] +
+        '</dd></div><div><dt>ご利用時間</dt><dd>' +
+        map['confirm-time'] +
+        '</dd></div><div><dt>葬家名</dt><dd>' +
+        map['confirm-souka'] +
+        '</dd></div><div><dt>葬儀社名</dt><dd>' +
+        map['confirm-company'] +
+        '</dd></div><div><dt>担当者名</dt><dd>' +
+        map['confirm-name'] +
+        '</dd></div>';
+    }
   }
 
   function fillTimes() {
@@ -170,33 +211,50 @@
 
   function saveReservation() {
     if (typeof HenreiyaStore === 'undefined') return Promise.resolve();
-    return HenreiyaStore.addReservation(reservationPayload());
+    return HenreiyaStore.addReservation(Object.assign(reservationPayload(), { status: 'confirmed' }));
+  }
+
+  async function validateDateTime() {
+    const start = form.querySelector('[name="date_start"]')?.value;
+    const end = form.querySelector('[name="date_end"]')?.value;
+    if (!start || !end) {
+      alert('希望日を選択してください。');
+      return false;
+    }
+    const a = new Date(start);
+    const b = new Date(end);
+    const diff = Math.round((b - a) / 86400000);
+    if (diff < 0) {
+      alert('終了日は開始日以降を選択してください。');
+      return false;
+    }
+    if (diff > 1) {
+      alert('希望日は1〜2日の範囲で選択してください。');
+      return false;
+    }
+    const timeStart = form.querySelector('[name="time-start"]');
+    const timeEnd = form.querySelector('[name="time-end"]');
+    if (!timeStart?.value || !timeEnd?.value) {
+      alert('ご利用時間を選択してください。');
+      return false;
+    }
+    const reason = await bookingBlockReason();
+    if (reason) {
+      alert(reason);
+      return false;
+    }
+    return true;
   }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (current === 0) return;
     if (current === 1) {
-      const start = form.querySelector('[name="date_start"]')?.value;
-      const end = form.querySelector('[name="date_end"]')?.value;
-      if (start && end) {
-        const a = new Date(start);
-        const b = new Date(end);
-        const diff = Math.round((b - a) / 86400000);
-        if (diff < 0) {
-          alert('終了日は開始日以降を選択してください。');
-          return;
-        }
-        if (diff > 1) {
-          alert('希望日は1〜2日の範囲で選択してください。');
-          return;
-        }
-      }
-      if (!form.reportValidity()) return;
-      const reason = await bookingBlockReason();
-      if (reason) {
-        alert(reason);
+      if (!(await validateDateTime())) {
+        showStep(0);
         return;
       }
+      if (!form.reportValidity()) return;
       fillConfirm();
       showStep(2);
       return;
@@ -211,7 +269,7 @@
         const reason = await bookingBlockReason();
         if (reason) {
           alert(reason);
-          showStep(1);
+          showStep(0);
           return;
         }
         await saveReservation();
@@ -246,9 +304,15 @@
   refreshReservations().then(updateSlotHint);
 
   document.getElementById('btn-back')?.addEventListener('click', () => showStep(1));
+  document.getElementById('btn-back-pick')?.addEventListener('click', () => showStep(0));
+  document.getElementById('btn-to-input')?.addEventListener('click', async () => {
+    if (!(await validateDateTime())) return;
+    fillConfirm();
+    showStep(1);
+  });
   document.getElementById('btn-done-home')?.addEventListener('click', () => {
     location.href = 'facility-home.html';
   });
 
-  showStep(1);
+  showStep(0);
 })();

@@ -99,17 +99,8 @@ window.HenreiyaReservationExtra = (function () {
     if (!range.start || date < range.start || date > range.end) return [];
     const startMin = toMinutes(item.timeStart);
     const endMin = toMinutes(item.timeEnd);
-    if (range.start === range.end) {
-      if (startMin == null || endMin == null || endMin <= startMin) return [];
-      return [{ start: startMin, end: endMin, kind: 'booked', item: item }];
-    }
-    if (date === range.start) {
-      return [{ start: startMin == null ? 0 : startMin, end: 1440, kind: 'booked', item: item }];
-    }
-    if (date === range.end) {
-      return [{ start: 0, end: endMin == null ? 1440 : endMin, kind: 'booked', item: item }];
-    }
-    return [{ start: 0, end: 1440, kind: 'booked', item: item }];
+    if (startMin == null || endMin == null || endMin <= startMin) return [];
+    return [{ start: startMin, end: endMin, kind: 'booked', item: item }];
   }
 
   function blocks() {

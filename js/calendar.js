@@ -82,11 +82,7 @@
           const span = HenreiyaReservationExtra.formatMinutes(row.start) + '〜' + HenreiyaReservationExtra.formatMinutes(row.end);
           if (row.kind === 'blocked') return '<div>⚫ 予約不可　' + span + '</div>';
           if (row.kind === 'booked') {
-            const label =
-              row.item && window.HenreiyaStore && HenreiyaStore.reservationStatusLabel
-                ? HenreiyaStore.reservationStatusLabel(row.item.status)
-                : '予約済み';
-            return '<div>🔴 ' + label + '　' + span + '</div>';
+            return '<div>🔴 予約不可　' + span + '</div>';
           }
           return '<div>🟢 予約可能　' + span + '</div>';
         })
@@ -166,7 +162,7 @@
         syncInputs();
         render();
         showDay(toKey(picked.y, picked.m, picked.d));
-        document.getElementById('reserve-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('day-slots')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     });
   }

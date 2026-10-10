@@ -82,19 +82,27 @@ window.HenreiyaStore = (function () {
     return data;
   }
 
+  let refreshInflight = null;
+
   /** スプレッドシートから全件取得して localStorage に反映 */
   async function refresh() {
     if (!sheetsEnabled()) return { ok: true, source: 'local' };
-    try {
-      const data = await sheetsGet({ action: 'listAll' });
-      if (Array.isArray(data.reservations)) write(KEYS.reservations, data.reservations);
-      if (Array.isArray(data.orders)) write(KEYS.orders, data.orders);
-      if (Array.isArray(data.inquiries)) write(KEYS.inquiries, data.inquiries);
-      return { ok: true, source: 'sheets' };
-    } catch (err) {
-      console.warn('[HenreiyaStore] sheets refresh failed', err);
-      return { ok: false, source: 'local', error: String(err) };
-    }
+    if (refreshInflight) return refreshInflight;
+    refreshInflight = (async () => {
+      try {
+        const data = await sheetsGet({ action: 'listAll' });
+        if (Array.isArray(data.reservations)) write(KEYS.reservations, data.reservations);
+        if (Array.isArray(data.orders)) write(KEYS.orders, data.orders);
+        if (Array.isArray(data.inquiries)) write(KEYS.inquiries, data.inquiries);
+        return { ok: true, source: 'sheets' };
+      } catch (err) {
+        console.warn('[HenreiyaStore] sheets refresh failed', err);
+        return { ok: false, source: 'local', error: String(err) };
+      } finally {
+        refreshInflight = null;
+      }
+    })();
+    return refreshInflight;
   }
 
   function sortByCreated(list) {
@@ -125,7 +133,7 @@ window.HenreiyaStore = (function () {
   async function createItem(type, prefix, data) {
     const item = {
       id: uid(prefix),
-      status: 'new',
+      status: type === 'reservations' ? 'confirmed' : 'new',
       createdAt: nowISO(),
       ...data,
     };
@@ -310,7 +318,7 @@ window.HenreiyaStore = (function () {
   };
 
   const RESERVATION_STATUS = {
-    new: '仮予約',
+    new: '予約確定',
     confirmed: '予約確定',
     in_progress: '利用中',
     completed: '利用終了',
