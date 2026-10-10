@@ -159,7 +159,7 @@ window.HenreiyaShop = (function () {
             (p, i) => `
           <a href="product.html?id=${p.id}" class="rank-card">
             <div class="rank-card__img">
-              <img src="${p.image}" alt="${p.name}" loading="lazy" width="280" height="280" />
+              <img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" width="280" height="280" />
               <span class="rank-badge rank-badge--${i + 1}">${i + 1}</span>
             </div>
             <span class="rank-card__brand">${p.category}</span>
@@ -206,7 +206,7 @@ window.HenreiyaShop = (function () {
         (p) => `
       <article class="product-card reveal is-visible">
         <a href="product.html?id=${p.id}" class="product-card__img">
-          <img src="${p.image}" alt="${p.name}" loading="lazy" width="400" height="400" />
+          <img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" width="400" height="400" />
         </a>
         <div class="product-card__body">
           <span class="product-card__cat">${p.category}</span>

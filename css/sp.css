@@ -325,6 +325,17 @@
   .btn-lg {
     width: 100%;
     min-width: 0;
+    min-height: 48px;
+  }
+
+  .view-switch {
+    gap: 0.15rem;
+  }
+
+  .view-switch button {
+    font-size: 10px;
+    padding: 0.28rem 0.45rem;
+    min-height: 32px;
   }
 
   .facility-card__body {

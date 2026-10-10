@@ -26,7 +26,6 @@
           </select>
           <select id="filter-status" aria-label="予約状況" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
             <option value="all">すべての状態</option>
-            <option value="new">仮予約</option>
             <option value="confirmed">予約確定</option>
             <option value="in_progress">利用中</option>
             <option value="completed">利用終了</option>
@@ -96,10 +95,10 @@
   <script src="../js/sheets-config.js"></script>
   <script src="../js/admin-store.js"></script>
   <script src="../js/availability-store.js"></script>
-  <script src="../js/reservation-extra.js?v=20261010a"></script>
+  <script src="../js/reservation-extra.js?v=20261010c"></script>
   <script src="../js/admin-ui.js"></script>
   <script src="../js/admin-export.js"></script>
-  <script src="../js/admin-board.js?v=20261010b"></script>
+  <script src="../js/admin-board.js?v=20261010c"></script>
   <script>
     (async function () {
       if (!(await AdminUI.bootstrap('reservations'))) throw new Error('auth');
@@ -154,7 +153,11 @@
         const status = document.getElementById('filter-status').value;
         const month = selectedMonthKey();
         let list = HenreiyaStore.getReservations();
-        if (status !== 'all') list = list.filter((r) => r.status === status);
+        if (status === 'confirmed') {
+          list = list.filter((r) => r.status === 'confirmed' || r.status === 'new');
+        } else if (status !== 'all') {
+          list = list.filter((r) => r.status === status);
+        }
         if (month !== 'all') {
           list = list.filter((r) => AdminExport.reservationMonthKey(r) === month);
         }

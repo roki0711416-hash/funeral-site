@@ -527,10 +527,6 @@ window.HenreiyaCatalog = (function () {
       bundleKey: String(data.bundleKey || '').trim(),
       shippingIncluded: !!data.shippingIncluded,
       image,
-      imageOriginal:
-        typeof data.imageOriginal === 'string'
-          ? data.imageOriginal
-          : (prev && prev.imageOriginal) || '',
       desc: data.desc != null ? String(data.desc) : (prev && prev.desc) || '',
       sortOrder: Number(data.sortOrder) || (prev && prev.sortOrder) || list.length + 1,
       published: image ? data.published !== false : false,
@@ -538,10 +534,12 @@ window.HenreiyaCatalog = (function () {
       createdAt: (prev && prev.createdAt) || now,
       updatedAt: now,
     };
-    if (item.imageOriginal && JSON.stringify(item).length > 45000) {
-      item.imageOriginal = '';
+    delete item.imageOriginal;
+    const packed = catalogRecord('product', item);
+    if (JSON.stringify({ action: 'update', type: 'inquiries', id: ROW.product + item.id, patch: packed }).length > 49000) {
+      throw new Error('画像が大きすぎてスプレッドシートに保存できません。別の写真を選んでください。');
     }
-    await persistInquiry(ROW.product + item.id, catalogRecord('product', item));
+    await persistInquiry(ROW.product + item.id, packed);
     await forgetDeleted('product', item.id);
     const next = read(KEYS.products);
     const index = next.findIndex((p) => p.id === item.id);

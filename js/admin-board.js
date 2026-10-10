@@ -116,11 +116,7 @@ window.HenreiyaAdminBoard = (function () {
     }
     const item = row.item || {};
     const who = esc(item.name || item.company || item.souka || '');
-    const label =
-      window.HenreiyaStore && HenreiyaStore.reservationStatusLabel
-        ? HenreiyaStore.reservationStatusLabel(item.status)
-        : '予約済み';
-    return '<span class="slot-booked">🔴 ' + esc(label) + '</span> ' + span + (who ? '　' + who : '');
+    return '<span class="slot-booked">🔴 予約不可</span> ' + span + (who ? '　' + who : '');
   }
 
   function paintDay() {
@@ -249,7 +245,6 @@ window.HenreiyaAdminBoard = (function () {
 
   function statusField(current) {
     const pairs = [
-      ['new', '仮予約'],
       ['confirmed', '予約確定'],
       ['in_progress', '利用中'],
       ['completed', '利用終了'],
@@ -263,7 +258,7 @@ window.HenreiyaAdminBoard = (function () {
             '<option value="' +
             pair[0] +
             '"' +
-            (pair[0] === (current || 'new') ? ' selected' : '') +
+            (pair[0] === ((current === 'new' || !current) ? 'confirmed' : current) ? ' selected' : '') +
             '>' +
             pair[1] +
             '</option>'
@@ -290,7 +285,7 @@ window.HenreiyaAdminBoard = (function () {
       <label>電話番号<input name="tel" value="${esc(r.tel || '')}" /></label>
       <label>利用内容<input name="usage" value="${esc(r.usage || r.souka || r.facility || '')}" /></label>
       <label>備考<textarea name="note">${esc(r.note || '')}</textarea></label>
-      <label>予約状況${statusField(r.status || 'new')}</label>
+      <label>予約状況${statusField(r.status === 'new' ? 'confirmed' : r.status || 'confirmed')}</label>
       <label>葬家名<input name="souka" value="${esc(r.souka || '')}" /></label>
       <label>葬儀社名<input name="company" value="${esc(r.company || '')}" /></label>
       <label>メール<input name="email" type="email" value="${esc(r.email || '')}" /></label>
@@ -315,7 +310,7 @@ window.HenreiyaAdminBoard = (function () {
       email: data.get('email') || '',
       usage: data.get('usage') || '',
       note: data.get('note') || '',
-      status: data.get('status') || (current && current.status) || 'new',
+      status: data.get('status') || (current && current.status) || 'confirmed',
     });
     delete next._syncError;
     return next;

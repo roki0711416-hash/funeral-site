@@ -78,7 +78,12 @@
       const orders = HenreiyaStore.getOrders();
       const inquiries = HenreiyaStore.getInquiries();
 
-      const newR = reservations.filter((r) => r.status === 'new').length;
+      const dayAgo = Date.now() - 86400000;
+      const newR = reservations.filter((r) => {
+        if (!r || r.status === 'cancelled') return false;
+        const t = new Date(r.createdAt).getTime();
+        return r.status === 'new' || (r.status === 'confirmed' && t >= dayAgo);
+      }).length;
       const newO = orders.filter((o) => o.status === 'new').length;
       const newI = inquiries.filter((i) => i.status === 'new').length;
 

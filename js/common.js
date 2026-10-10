@@ -2,6 +2,27 @@
 (function () {
   'use strict';
 
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
+  function scrollToHashOrTop() {
+    if (location.hash) {
+      const id = decodeURIComponent(location.hash.replace(/^#/, ''));
+      const target = id ? document.getElementById(id) : null;
+      if (target) {
+        window.setTimeout(() => target.scrollIntoView(), 0);
+        return;
+      }
+    }
+    window.scrollTo(0, 0);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scrollToHashOrTop);
+  } else {
+    scrollToHashOrTop();
+  }
+
   /* Mobile nav */
   const toggle = document.querySelector('.menu-toggle');
   const nav = document.querySelector('.site-nav');
@@ -113,4 +134,72 @@
       setTimeout(() => banner.remove(), 400);
     });
   }
+
+  const VIEW_KEY = 'henreiya_view_mode';
+  const viewport = document.querySelector('meta[name="viewport"]');
+  const viewportDefault =
+    (viewport && viewport.getAttribute('content')) || 'width=device-width, initial-scale=1';
+
+  function viewMode() {
+    const value = localStorage.getItem(VIEW_KEY) || 'auto';
+    return value === 'pc' || value === 'sp' ? value : 'auto';
+  }
+
+  function applyView(mode) {
+    const next = mode === 'pc' || mode === 'sp' ? mode : 'auto';
+    document.documentElement.setAttribute('data-view', next);
+    if (!viewport) return;
+    if (next === 'pc') {
+      const scale = Math.min(1, window.innerWidth / 1180);
+      viewport.setAttribute(
+        'content',
+        'width=1180, initial-scale=' + String(Math.max(0.25, Number(scale.toFixed(3))))
+      );
+    } else if (next === 'sp') {
+      viewport.setAttribute('content', 'width=390, initial-scale=1');
+    } else {
+      viewport.setAttribute('content', viewportDefault);
+    }
+    document.querySelectorAll('.view-switch [data-view]').forEach((btn) => {
+      btn.classList.toggle('is-on', btn.getAttribute('data-view') === next);
+    });
+  }
+
+  if (!isAdmin) {
+    const inner = document.querySelector('.header-inner');
+    const menuBtn = document.querySelector('.menu-toggle');
+    if (inner && !inner.querySelector('.view-switch')) {
+      const box = document.createElement('div');
+      box.className = 'view-switch';
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', '表示切替');
+      [
+        ['auto', '自動'],
+        ['pc', 'PC表示'],
+        ['sp', 'スマートフォン表示'],
+      ].forEach((pair) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-view', pair[0]);
+        btn.textContent = pair[1];
+        btn.addEventListener('click', () => {
+          localStorage.setItem(VIEW_KEY, pair[0]);
+          applyView(pair[0]);
+        });
+        box.appendChild(btn);
+      });
+      if (menuBtn) inner.insertBefore(box, menuBtn);
+      else inner.appendChild(box);
+    }
+    applyView(viewMode());
+    window.addEventListener('resize', () => {
+      if (viewMode() === 'pc') applyView('pc');
+    });
+  }
+
+  document.querySelectorAll('img:not([loading])').forEach((img) => {
+    if (img.closest('.hero, .portal-hero')) return;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+  });
 })();

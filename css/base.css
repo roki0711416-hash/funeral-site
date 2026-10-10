@@ -22,7 +22,7 @@
   --font-serif: 'Noto Serif JP', 'Hiragino Mincho ProN', serif;
   --font-sans: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --max: 1100px;
+  --max: 1240px;
 }
 
 *,
@@ -51,6 +51,64 @@ img {
   max-width: 100%;
   height: auto;
   display: block;
+}
+
+.view-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+
+.view-switch button {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--gray-600);
+  background: transparent;
+  border: 1px solid var(--gray-200);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.view-switch button.is-on {
+  color: var(--white);
+  background: var(--navy);
+  border-color: var(--navy);
+}
+
+.picked-summary {
+  background: var(--off-white);
+  border: 1px solid var(--gray-200);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.5rem;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.reserve-complete-summary {
+  display: grid;
+  gap: 0.65rem;
+  text-align: left;
+  max-width: 28rem;
+  margin: 0 auto 2rem;
+  font-size: 14px;
+}
+
+.reserve-complete-summary div {
+  display: grid;
+  grid-template-columns: 7em 1fr;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.reserve-complete-summary dt {
+  color: var(--gray-600);
+  font-weight: 600;
 }
 
 a {
@@ -208,7 +266,8 @@ button {
 }
 
 .header-inner {
-  max-width: var(--max);
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   height: 100%;
   display: flex;
@@ -253,7 +312,7 @@ button {
 }
 
 .nav-list a {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--gray-800);

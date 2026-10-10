@@ -11,7 +11,7 @@
     .prod-tabs button.is-active { background:#1a2f4a; color:#fff; border-color:#1a2f4a; }
     .prod-grid { display:none; }
     .prod-grid.is-active { display:block; }
-    .prod-thumb { width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--admin-border); background:#f5f5f5; }
+    .prod-thumb { width:48px; height:48px; object-fit:contain; border-radius:6px; border:1px solid var(--admin-border); background:#f5f5f5; }
     .form-grid { display:grid; gap:0.85rem; }
     .form-grid label { display:flex; flex-direction:column; gap:0.35rem; font-size:12px; color:#5c5852; font-weight:600; }
     .form-grid label[hidden] { display:none; }
@@ -20,7 +20,7 @@
     }
     .form-grid textarea { min-height:88px; resize:vertical; }
     .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
-    .img-preview { width:100%; max-width:220px; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--admin-border); background:#f7f5f2; }
+    .img-preview { width:100%; max-width:220px; aspect-ratio:1; object-fit:contain; border-radius:8px; border:1px solid var(--admin-border); background:#f7f5f2; }
     .img-presets { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.35rem; }
     .img-presets button { padding:0; border:2px solid transparent; border-radius:6px; overflow:hidden; cursor:pointer; background:none; }
     .img-presets button.is-on { border-color:#1a2f4a; }
@@ -101,7 +101,8 @@
   <script src="../js/sheets-config.js"></script>
   <script src="../js/admin-store.js"></script>
   <script src="../js/catalog-seed.js?v=20261005m"></script>
-  <script src="../js/catalog-store.js?v=20261005m"></script>
+  <script src="../js/catalog-store.js?v=20261010c"></script>
+  <script src="../js/image-prepare.js?v=20261010c"></script>
   <script src="../js/admin-ui.js"></script>
   <script>
     (async function () {
@@ -331,22 +332,14 @@
           if (!file) return;
           fileInput.disabled = true;
           try {
-            const fitted = fileInput.dataset.fit === 'shop';
-            const result = fitted ? await fitShopImage(file) : await compressImage(file);
-            const dataUrl = fitted ? result.display : result;
-            if (dataUrl.length > 45000) {
-              alert('この画像は保存できない大きさです。別の写真を選んでください。');
-              return;
-            }
-            urlInput.value = dataUrl;
-            if (fitted) {
-              const originalInput = root.querySelector('[name="imageOriginal"]');
-              if (originalInput) originalInput.value = result.original || '';
-            }
-            setPreview(dataUrl);
+            const result = await HenreiyaImage.prepare(file);
+            urlInput.value = result.display;
+            const originalInput = root.querySelector('[name="imageOriginal"]');
+            if (originalInput) originalInput.value = '';
+            setPreview(result.display);
           } catch (err) {
             console.warn(err);
-            alert('画像を読み込めませんでした。別のファイルを選んでください。');
+            alert((err && err.message) || '画像を読み込めませんでした。別のファイルを選んでください。');
           } finally {
             fileInput.disabled = false;
           }
