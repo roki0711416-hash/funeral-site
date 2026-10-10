@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ご注文手続き｜株式会社返礼屋" />
+  <title>ご注文手続き｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/shop.css?v=20261005k" />
+  <link rel="stylesheet" href="css/pc.css" />
+  <link rel="stylesheet" href="css/sp.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <nav class="site-nav" id="site-nav" aria-label="メインメニュー">
+        <button type="button" class="nav-drawer-close" aria-label="メニューを閉じる">×</button>
+        <ul class="nav-list">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="facility-home.html">施設予約</a></li>
+          <li><a href="shop.html">返礼品ショップ</a></li>
+          <li><a href="company.html">会社概要</a></li>
+          <li><a href="contact.html">お問い合わせ</a></li>
+        </ul>
+        <div class="nav-actions-sp">
+          <a href="cart.html" class="btn btn-secondary">カートへ戻る</a>
+        </div>
+      </nav>
+      <div class="header-actions header-actions--pc">
+        <a href="cart.html" class="btn btn-secondary">カートへ戻る</a>
+      </div>
+      <button type="button" class="menu-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-overlay" aria-hidden="true"></div>
+
+  <main>
+    <div class="page-hero">
+      <h1>ご注文手続き</h1>
+      <p>1回のご注文につき、お届け先は1か所です</p>
+    </div>
+
+    <section class="section">
+      <div class="section-inner">
+        <div id="checkout-empty" class="cart-empty" hidden>
+          <p>カートが空です。</p>
+          <a href="shop.html" class="btn btn-primary btn-lg" style="margin-top:1.5rem;">商品一覧へ</a>
+        </div>
+
+        <form class="form-wrap form-wrap--wide" id="checkout-form">
+          <p style="font-size:13px;color:var(--gray-600);margin-bottom:1.5rem;text-align:center;">
+            お支払いは銀行振込です。ご注文確定後に振込先をご案内します。
+          </p>
+
+          <h3 class="checkout-block-title">ご注文者様</h3>
+          <div class="form-group">
+            <label for="o-name">お名前<span class="required-tag">必須</span></label>
+            <input class="form-control" type="text" id="o-name" name="name" required autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="o-tel">電話番号<span class="required-tag">必須</span></label>
+            <input class="form-control" type="tel" id="o-tel" name="tel" required autocomplete="tel" />
+          </div>
+          <div class="form-group">
+            <label for="o-email">メールアドレス<span class="required-tag">必須</span></label>
+            <input class="form-control" type="email" id="o-email" name="email" required autocomplete="email" />
+          </div>
+
+          <div class="checkout-block-head">
+            <h3 class="checkout-block-title" style="margin:0;border:none;padding:0;">ご用途・熨斗情報</h3>
+            <a href="images/noshi-hosho.pdf" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">奉書見本をPDFで開く</a>
+          </div>
+          <p class="ship-hint" style="margin-top:0.75rem;">該当するものにチェックを入れてください（複数可）</p>
+          <div class="purpose-list" role="group" aria-label="ご用途">
+            <label class="purpose-item">
+              <input type="checkbox" name="purpose" value="七七日忌（49日）" />
+              <span>七七日忌（49日）</span>
+            </label>
+            <label class="purpose-item">
+              <input type="checkbox" name="purpose" value="一周忌" />
+              <span>一周忌</span>
+            </label>
+            <label class="purpose-item">
+              <input type="checkbox" name="purpose" value="葬儀後すぐのお香典返し" />
+              <span>葬儀後すぐのお香典返し</span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-top:1.5rem;">
+            <label>のし用紙</label>
+            <div class="choice-row" role="radiogroup" aria-label="のし用紙">
+              <label class="choice-item">
+                <input type="radio" name="noshi_type" value="奉書" />
+                <span>奉書</span>
+              </label>
+              <label class="choice-item">
+                <input type="radio" name="noshi_type" value="二つ折りカード" />
+                <span>二つ折りカード</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="o-relation">続柄</label>
+              <input class="form-control" type="text" id="o-relation" name="relation" placeholder="例：長男" />
+            </div>
+            <div class="form-group">
+              <label for="o-deceased">故人名</label>
+              <input class="form-control" type="text" id="o-deceased" name="deceased_name" placeholder="例：山田 太郎" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="o-kaimyo">戒名</label>
+            <input class="form-control" type="text" id="o-kaimyo" name="kaimyo" placeholder="戒名がある場合ご記入ください" />
+          </div>
+
+          <div class="form-group">
+            <label for="o-ship-month">発送月</label>
+            <select class="form-control" id="o-ship-month" name="ship_month">
+              <option value="">選択してください</option>
+              <option value="1月">1月</option>
+              <option value="2月">2月</option>
+              <option value="3月">3月</option>
+              <option value="4月">4月</option>
+              <option value="5月">5月</option>
+              <option value="6月">6月</option>
+              <option value="7月">7月</option>
+              <option value="8月">8月</option>
+              <option value="9月">9月</option>
+              <option value="10月">10月</option>
+              <option value="11月">11月</option>
+              <option value="12月">12月</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="o-mourner-name">喪主の御名前</label>
+            <input class="form-control" type="text" id="o-mourner-name" name="mourner_name" />
+          </div>
+
+          <h3 class="checkout-block-title">喪主の御住所</h3>
+          <div class="form-group">
+            <label for="mourner-zip">郵便番号</label>
+            <input class="form-control" type="text" id="mourner-zip" name="mourner_zip" inputmode="numeric" autocomplete="postal-code" placeholder="123-4567" maxlength="8" />
+            <p class="ship-zip-hint" id="mourner-zip-hint" hidden></p>
+          </div>
+          <div class="form-group">
+            <label for="mourner-pref">都道府県</label>
+            <select class="form-control" id="mourner-pref" name="mourner_pref" autocomplete="address-level1">
+              <option value="">選択してください</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="mourner-addr">ご住所</label>
+            <input class="form-control" type="text" id="mourner-addr" name="mourner_addr" placeholder="市区町村・町名のあと、番地・建物名" autocomplete="street-address" />
+          </div>
+
+          <h3 class="checkout-block-title">お届け先</h3>
+          <p class="ship-hint" id="ship-free-note">1回のご注文につき、お届け先は1か所です。発送元や温度帯が異なる商品は、配送便が分かれます。商品代が10,000円以上のときは送料無料です。</p>
+          <label class="checkout-same">
+            <input type="checkbox" id="ship-same" />
+            注文者と同じ氏名・電話を使う
+          </label>
+          <div class="form-group">
+            <label for="ship-name">お届け先お名前<span class="required-tag">必須</span></label>
+            <input class="form-control" type="text" id="ship-name" required />
+          </div>
+          <div class="form-group">
+            <label for="ship-tel">お届け先電話番号<span class="required-tag">必須</span></label>
+            <input class="form-control" type="tel" id="ship-tel" required />
+          </div>
+          <div class="form-group">
+            <label for="ship-zip">郵便番号<span class="required-tag">必須</span></label>
+            <input class="form-control" type="text" id="ship-zip" required inputmode="numeric" autocomplete="postal-code" placeholder="123-4567" maxlength="8" />
+            <p class="ship-zip-hint" id="ship-zip-hint" hidden></p>
+          </div>
+          <div class="form-group">
+            <label for="ship-pref">都道府県<span class="required-tag">必須</span></label>
+            <select class="form-control" id="ship-pref" required>
+              <option value="">選択してください</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ship-addr">ご住所<span class="required-tag">必須</span></label>
+            <input class="form-control" type="text" id="ship-addr" required placeholder="市区町村・町名のあと、番地・建物名" autocomplete="street-address" />
+          </div>
+          <div id="ship-quote" class="ship-quote" aria-live="polite">都道府県を選ぶと、送料と配送便を表示します。</div>
+
+          <div class="form-group" style="margin-top:1.5rem;">
+            <label for="o-note">注文全体の備考</label>
+            <textarea class="form-control" id="o-note" name="note" placeholder="例：全体ののし希望、配達希望日など"></textarea>
+          </div>
+
+          <div class="cart-summary" style="max-width:none;margin:0 0 1.5rem;">
+            <div class="cart-summary__row"><span>ご注文点数</span><span id="sum-count">0点</span></div>
+            <div class="cart-summary__row"><span>商品代</span><span id="sum-goods">—</span></div>
+            <div class="cart-summary__row"><span>送料</span><span id="sum-shipping">—</span></div>
+            <div class="cart-summary__row"><span>配送</span><span id="sum-parcels">—</span></div>
+            <div class="cart-summary__total"><span>合計（税込）</span><span id="sum-total">—</span></div>
+          </div>
+
+          <h3 class="checkout-block-title">お支払い方法</h3>
+          <div class="payment-choice" role="radiogroup" aria-label="お支払い方法">
+            <label class="payment-choice__item">
+              <input type="radio" name="payment_method" value="bank_transfer" checked required />
+              <span class="payment-choice__body">
+                <strong>銀行振込</strong>
+                <span>ご注文確定後に表示する口座へお振込みください。ご入金確認後に発送いたします。</span>
+              </span>
+            </label>
+          </div>
+
+          <label class="checkout-terms">
+            <input type="checkbox" id="agree-terms" name="agree_terms" required />
+            <span>
+              <a href="terms.html" target="_blank" rel="noopener noreferrer">利用規約</a>
+              および
+              <a href="privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>
+              に同意する
+            </span>
+          </label>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block" id="checkout-submit" disabled>注文を確定する</button>
+        </form>
+
+        <div class="form-wrap text-center" id="checkout-done" hidden>
+          <p style="font-family:var(--font-serif);font-size:1.35rem;color:var(--navy);letter-spacing:0.1em;margin-bottom:1rem;">
+            ご注文を受け付けました
+          </p>
+          <p style="color:var(--gray-600);font-size:14px;line-height:1.85;margin-bottom:0.5rem;" id="done-msg">
+            下記の口座へお振込みください。
+          </p>
+          <div id="done-bank"></div>
+          <a href="shop.html" class="btn btn-primary btn-lg">ショップへ戻る</a>
+          <p style="margin-top:1.25rem;font-size:13px;">
+            <a href="contact.html" style="color:var(--navy);text-decoration:underline;">お問い合わせはこちら</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+    <footer class="site-footer">
+    <div class="footer-inner footer-inner--minimal">
+      <nav class="footer-legal" aria-label="企業情報・ポリシー">
+        <a href="company.html">会社概要</a>
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="cookies.html">クッキーポリシー</a>
+      </nav>
+      <p class="footer-copy">&copy; <span data-year></span> 株式会社返礼屋 All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/common.js"></script>
+  <script src="js/local-config.js"></script>
+  <script src="js/sheets-config.js"></script>
+  <script src="js/admin-store.js"></script>
+  <script src="js/catalog-seed.js?v=20261005k"></script>
+  <script src="js/catalog-store.js?v=20261005k"></script>
+  <script src="js/shipping-calc.js?v=20261005k"></script>
+  <script src="js/payment-config.js"></script>
+  <script src="js/zipcode.js"></script>
+  <script src="js/shop.js"></script>
+  <script>
+    (async function () {
+      await HenreiyaCatalog.refresh();
+      HenreiyaShop.syncFromCatalog();
+
+      const form = document.getElementById('checkout-form');
+      const done = document.getElementById('checkout-done');
+      const empty = document.getElementById('checkout-empty');
+      const lines = HenreiyaShop.cartLines();
+      const pref = document.getElementById('ship-pref');
+      const mournerPref = document.getElementById('mourner-pref');
+      const quoteBox = document.getElementById('ship-quote');
+      const submitBtn = document.getElementById('checkout-submit');
+      let quoteResult = null;
+      let quoteTimer = null;
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      if (!lines.length) {
+        form.hidden = true;
+        empty.hidden = false;
+        return;
+      }
+
+      document.getElementById('sum-count').textContent = HenreiyaShop.cartCount() + '点';
+      HenreiyaShipping.PREFECTURES.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        pref.appendChild(option);
+        mournerPref.appendChild(option.cloneNode(true));
+      });
+
+      const same = document.getElementById('ship-same');
+      const fillSame = () => {
+        if (!same.checked) return;
+        document.getElementById('ship-name').value = document.getElementById('o-name').value;
+        document.getElementById('ship-tel').value = document.getElementById('o-tel').value;
+      };
+      same.addEventListener('change', fillSame);
+      document.getElementById('o-name').addEventListener('input', fillSame);
+      document.getElementById('o-tel').addEventListener('input', fillSame);
+
+      HenreiyaZip.bind(document.getElementById('ship-zip'), document.getElementById('ship-addr'), {
+        hintEl: document.getElementById('ship-zip-hint'),
+        onFound(found) {
+          if (HenreiyaShipping.PREFECTURES.indexOf(found.pref) >= 0) {
+            pref.value = found.pref;
+            scheduleQuote();
+          }
+        },
+      });
+      HenreiyaZip.bind(document.getElementById('mourner-zip'), document.getElementById('mourner-addr'), {
+        hintEl: document.getElementById('mourner-zip-hint'),
+        onFound(found) {
+          if (HenreiyaShipping.PREFECTURES.indexOf(found.pref) >= 0) {
+            mournerPref.value = found.pref;
+          }
+          document.getElementById('mourner-addr').value = (found.city || '') + (found.town || '');
+        },
+      });
+
+      function showQuote(result, fallback) {
+        quoteResult = result && result.ok ? result : null;
+        submitBtn.disabled = !quoteResult;
+        if (!result) {
+          document.getElementById('sum-goods').textContent = '—';
+          document.getElementById('sum-shipping').textContent = '—';
+          document.getElementById('sum-parcels').textContent = '—';
+          document.getElementById('sum-total').textContent = '—';
+          quoteBox.classList.toggle('is-error', Boolean(fallback));
+          quoteBox.textContent = fallback || '都道府県を選ぶと、送料と配送便を表示します。';
+          return;
+        }
+        document.getElementById('sum-goods').textContent = HenreiyaShipping.money(result.goodsTotal);
+        document.getElementById('sum-shipping').textContent =
+          result.shippingTotal == null ? '計算できません' : result.freeShipping ? '送料無料' : HenreiyaShipping.money(result.shippingTotal);
+        document.getElementById('sum-parcels').textContent = result.parcels.length
+          ? result.parcels.length + '便'
+          : '—';
+        document.getElementById('sum-total').textContent =
+          result.total == null ? '—' : HenreiyaShipping.money(result.total);
+        if (!result.ok) {
+          quoteBox.classList.add('is-error');
+          quoteBox.textContent = result.errors.map((error) => error.message).join(' ');
+          return;
+        }
+        quoteBox.classList.remove('is-error');
+        quoteBox.innerHTML =
+          '配送は' +
+          result.parcels.length +
+          '便です。' +
+          result.parcels
+            .map((parcel, index) => {
+              const names = parcel.items.map((item) => esc(item.name)).join('、');
+              const bundle = parcel.bundleKey ? ' / 同梱条件 ' + esc(parcel.bundleKey) : '';
+              const lead = parcel.leadTime ? ' / 発送目安 ' + esc(parcel.leadTime) : '';
+              return (
+                '<div class="ship-parcel">配送便' +
+                (index + 1) +
+                '：' +
+                esc(parcel.supplierName) +
+                ' / ' +
+                esc(parcel.storageLabel) +
+                bundle +
+                ' / ' +
+                names +
+                ' / 送料 ' +
+                (parcel.freeShipping ? '無料' : HenreiyaShipping.money(parcel.fee)) +
+                lead +
+                '</div>'
+              );
+            })
+            .join('');
+      }
+
+      async function refreshQuote() {
+        const prefecture = pref.value;
+        if (!prefecture) {
+          showQuote(null);
+          return;
+        }
+        quoteBox.classList.remove('is-error');
+        quoteBox.textContent = '送料を計算しています…';
+        submitBtn.disabled = true;
+        try {
+          const res = await fetch('/api/quote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prefecture,
+              items: lines.map((line) => ({ id: line.id, qty: line.qty })),
+            }),
+          });
+          const data = await res.json();
+          if (!data || !data.quote) {
+            showQuote(null, (data && data.error) || '送料を計算できませんでした。');
+            return;
+          }
+          showQuote(data.quote);
+        } catch (err) {
+          showQuote(null, '送料を計算できませんでした。時間をおいて再度お試しください。');
+        }
+      }
+
+      function scheduleQuote() {
+        clearTimeout(quoteTimer);
+        quoteTimer = setTimeout(refreshQuote, 200);
+      }
+      pref.addEventListener('change', scheduleQuote);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!form.reportValidity()) return;
+        await refreshQuote();
+        if (!quoteResult || !quoteResult.ok) {
+          alert('送料を確定できないため、注文できません。表示された理由をご確認ください。');
+          return;
+        }
+        const data = new FormData(form);
+        const purposes = [...form.querySelectorAll('input[name="purpose"]:checked')].map((el) => el.value);
+        submitBtn.disabled = true;
+        submitBtn.textContent = '送信中…';
+        try {
+          const res = await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: data.get('name') || '',
+              tel: data.get('tel') || '',
+              email: data.get('email') || '',
+              purposes,
+              purpose: purposes.join('、'),
+              noshiType: data.get('noshi_type') || '',
+              relation: data.get('relation') || '',
+              deceasedName: data.get('deceased_name') || '',
+              kaimyo: data.get('kaimyo') || '',
+              shipMonth: data.get('ship_month') || '',
+              mournerName: data.get('mourner_name') || '',
+              mournerZip: document.getElementById('mourner-zip').value.trim(),
+              mournerPref: mournerPref.value,
+              mournerAddr: document.getElementById('mourner-addr').value.trim(),
+              note: data.get('note') || '',
+              shipName: document.getElementById('ship-name').value.trim(),
+              shipTel: document.getElementById('ship-tel').value.trim(),
+              shipZip: document.getElementById('ship-zip').value.trim(),
+              shipAddr: document.getElementById('ship-addr').value.trim(),
+              prefecture: pref.value,
+              items: lines.map((line) => ({ id: line.id, qty: line.qty })),
+            }),
+          });
+          const saved = await res.json();
+          if (!res.ok || !saved.ok) {
+            if (saved.quote) showQuote(saved.quote);
+            else showQuote(null, saved.error || '注文を確定できませんでした。');
+            alert(saved.error || '注文を確定できませんでした。');
+            return;
+          }
+          const order = saved.order;
+          document.getElementById('done-msg').innerHTML =
+            '配送 ' +
+            (order.parcels || []).length +
+            '便で受け付けました。<br />商品代 ' +
+            HenreiyaShipping.money(order.goodsTotal) +
+            '、送料 ' +
+            HenreiyaShipping.money(order.shippingTotal) +
+            '、合計 ' +
+            HenreiyaShipping.money(order.total) +
+            'です。<br />下記口座へお振込みください。';
+          document.getElementById('done-bank').innerHTML = HenreiyaPayment.bankTransferHtml({
+            orderId: order.id,
+            total: order.total,
+          });
+          HenreiyaShop.clearCart();
+          form.hidden = true;
+          done.hidden = false;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } finally {
+          submitBtn.textContent = '注文を確定する';
+          submitBtn.disabled = !(quoteResult && quoteResult.ok);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

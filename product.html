@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="返礼品の商品詳細｜株式会社返礼屋" />
+  <title>商品詳細｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/shop.css?v=20261010a" />
+  <link rel="stylesheet" href="css/pc.css" />
+  <link rel="stylesheet" href="css/sp.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <nav class="site-nav" id="site-nav" aria-label="メインメニュー">
+        <button type="button" class="nav-drawer-close" aria-label="メニューを閉じる">×</button>
+        <ul class="nav-list">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="facility-home.html">施設予約</a></li>
+          <li><a href="shop.html">返礼品ショップ</a></li>
+          <li><a href="company.html">会社概要</a></li>
+          <li><a href="contact.html">お問い合わせ</a></li>
+        </ul>
+        <div class="nav-actions-sp">
+          <a href="cart.html" class="btn btn-primary">カートを見る</a>
+          <a href="shop.html" class="btn btn-secondary">商品一覧へ</a>
+        </div>
+      </nav>
+      <div class="header-actions header-actions--pc">
+        <a href="cart.html" class="cart-link">
+          カート
+          <span class="cart-badge" data-cart-count hidden>0</span>
+        </a>
+        <a href="shop.html" class="btn btn-secondary">商品一覧</a>
+      </div>
+      <button type="button" class="menu-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-overlay" aria-hidden="true"></div>
+
+  <main>
+    <section class="section">
+      <div class="section-inner">
+        <p style="margin-bottom:1.5rem;font-size:13px;color:var(--gray-600);">
+          <a href="shop.html" style="color:var(--navy);">返礼品ショップ</a> ／ 商品詳細
+        </p>
+        <div class="product-detail" id="product-detail">
+          <p>商品が見つかりません。<a href="shop.html">商品一覧へ戻る</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+    <footer class="site-footer">
+    <div class="footer-inner footer-inner--minimal">
+      <nav class="footer-legal" aria-label="企業情報・ポリシー">
+        <a href="company.html">会社概要</a>
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="cookies.html">クッキーポリシー</a>
+      </nav>
+      <p class="footer-copy">&copy; <span data-year></span> 株式会社返礼屋 All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/common.js"></script>
+  <script src="js/local-config.js"></script>
+  <script src="js/sheets-config.js"></script>
+  <script src="js/catalog-seed.js?v=20261005j"></script>
+  <script src="js/catalog-store.js?v=20261005n"></script>
+  <script src="js/shop.js?v=20261005j"></script>
+  <script>
+    (async function () {
+      const loaded = await HenreiyaCatalog.refresh();
+      HenreiyaShop.syncFromCatalog();
+      const root = document.getElementById('product-detail');
+      if (!loaded.ok) {
+        root.innerHTML = '<p class="section-lead">商品情報を読み込めませんでした。時間をおいて再度開いてください。</p>';
+        return;
+      }
+
+      const params = new URLSearchParams(location.search);
+      const product = HenreiyaShop.getProduct(params.get('id'));
+      if (!product) {
+        root.innerHTML = '<p class="section-lead">商品が見つかりません。<a href="shop.html">商品一覧へ</a></p>';
+        return;
+      }
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+      const specs = [
+        ['申込番号', product.applicationNo],
+        ['税抜価格', product.priceExTax === '' || product.priceExTax == null ? '' : Number(product.priceExTax).toLocaleString('ja-JP') + '円'],
+        ['賞味期間（製造日から）', product.shelfLife],
+        ['商品内容', product.contents],
+        ['箱サイズ', product.boxSize],
+        ['商品重量', product.quantityText],
+        ['三辺サイズ', product.threeSize],
+        ['宅配サイズ', product.deliverySize],
+        ['のしサイズ', product.noshiSize],
+      ].filter((row) => String(row[1] || '').trim());
+      const specHtml = specs.length
+        ? `<dl class="product-specs">${specs
+            .map((row) => `<div><dt>${esc(row[0])}</dt><dd>${esc(row[1])}</dd></div>`)
+            .join('')}</dl>`
+        : '';
+      document.title = product.name + '｜株式会社返礼屋';
+      root.innerHTML = `
+        <div class="product-detail__img">
+          <img src="${esc(product.image)}" alt="${esc(product.name)}" width="800" height="800" />
+        </div>
+        <div class="product-detail__info">
+          <span class="product-card__cat">${esc(product.category)}</span>
+          <h1>${esc(product.name)}</h1>
+          <p class="product-detail__price">${HenreiyaShop.formatPrice(product.price)}<small>（税込）</small></p>
+          ${specHtml}
+          <p style="color:var(--gray-600);font-size:14px;line-height:1.9;margin-bottom:1.5rem;">${esc(product.desc)}</p>
+          <p style="font-size:13px;margin-bottom:1.25rem;">
+            <a href="shop.html?cat=${esc(product.categoryId)}#products" style="color:var(--navy);text-decoration:underline;">「${esc(product.category)}」の商品一覧へ</a>
+          </p>
+          <div class="qty-row">
+            <label for="qty">数量</label>
+            <input type="number" id="qty" min="1" max="99" value="1" />
+          </div>
+          <button type="button" class="btn btn-primary btn-lg" id="btn-add">カートに入れる</button>
+          <p style="margin-top:1rem;font-size:12px;color:var(--gray-400);">※お支払いは銀行振込です。ご注文確定後に振込先をご案内します。</p>
+        </div>
+      `;
+      document.getElementById('btn-add').addEventListener('click', () => {
+        const qty = document.getElementById('qty').value;
+        HenreiyaShop.addToCart(product.id, qty);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="株式会社返礼屋の空き状況確認・ご予約" />
+  <title>空き確認・予約｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/pc.css" />
+  <link rel="stylesheet" href="css/sp.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <nav class="site-nav" id="site-nav" aria-label="メインメニュー">
+        <button type="button" class="nav-drawer-close" aria-label="メニューを閉じる">×</button>
+        <ul class="nav-list">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="facility-home.html">施設予約</a></li>
+          <li><a href="shop.html">返礼品ショップ</a></li>
+          <li><a href="company.html">会社概要</a></li>
+          <li><a href="contact.html">お問い合わせ</a></li>
+        </ul>
+      </nav>
+      <button type="button" class="menu-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-overlay" aria-hidden="true"></div>
+
+  <main>
+    <div class="page-hero">
+      <h1>空き状況の確認・予約</h1>
+    </div>
+
+    <section class="section section-muted" id="calendar-root">
+      <div class="section-inner">
+        <div class="calendar-layout">
+          <div class="calendar-panel">
+            <p class="calendar-facility-label">貸式場</p>
+            <div class="calendar-header">
+              <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="前月">‹</button>
+              <h3 id="cal-title">2025年 9月</h3>
+              <button type="button" class="cal-nav-btn" id="cal-next" aria-label="翌月">›</button>
+            </div>
+            <div class="calendar-legend">
+              <span class="legend-item"><span class="status-o">○</span> 予約可能</span>
+              <span class="legend-item"><span class="status-t">△</span> 一部予約あり</span>
+              <span class="legend-item"><span class="status-x">×</span> 予約不可</span>
+            </div>
+            <div class="calendar-grid" id="cal-grid" aria-live="polite"></div>
+            <div class="day-slots" id="day-slots" hidden></div>
+            <p style="margin-top:1rem;font-size:13px;color:var(--gray-600);text-align:center;">
+              日付を選択すると、下の予約フォームに反映されます（開始日→終了日の順）。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-inner">
+        <h2 class="section-title reveal">ご予約情報の入力</h2>
+
+        <div class="steps reveal mt-2" aria-label="予約ステップ">
+          <div class="step is-active" data-step-indicator="1">
+            <span class="step__num">1</span>
+            <span class="step__label">情報入力</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" data-step-indicator="2">
+            <span class="step__num">2</span>
+            <span class="step__label">内容確認</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" data-step-indicator="3">
+            <span class="step__num">3</span>
+            <span class="step__label">完了</span>
+          </div>
+        </div>
+
+        <form class="form-wrap reveal" id="reserve-form" novalidate>
+          <div data-step-panel="1">
+            <div class="form-group">
+              <label>ご利用施設<span class="required-tag">必須</span></label>
+              <div class="radio-group">
+                <label class="radio-item">
+                  <input type="radio" name="facility" value="hall" checked />
+                  貸式場
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>希望日（1〜2日）<span class="required-tag">必須</span></label>
+              <div class="date-range">
+                <div>
+                  <label for="desired-date-start" class="sr-only">開始日</label>
+                  <input class="form-control" type="date" id="desired-date-start" name="date_start" required />
+                </div>
+                <span>〜</span>
+                <div>
+                  <label for="desired-date-end" class="sr-only">終了日</label>
+                  <input class="form-control" type="date" id="desired-date-end" name="date_end" required />
+                </div>
+              </div>
+              <p class="form-hint">同じ日を選ぶと1日利用、翌日まで選ぶと2日利用になります。</p>
+              <p class="form-hint" id="slot-hint">すでに予約のある日時は申し込めません。</p>
+            </div>
+            <div class="form-group">
+              <label>ご利用時間<span class="required-tag">必須</span></label>
+              <div class="time-range">
+                <select class="form-control" name="time-start" required>
+                  <option value="">開始</option>
+                </select>
+                <span>〜</span>
+                <select class="form-control" name="time-end" required>
+                  <option value="">終了</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="souka">葬家名<span class="required-tag">必須</span></label>
+              <input class="form-control" type="text" id="souka" name="souka" required placeholder="例：山田家" />
+            </div>
+            <div class="form-group">
+              <label for="company">葬儀社名<span class="required-tag">必須</span></label>
+              <input class="form-control" type="text" id="company" name="company" required autocomplete="organization" />
+            </div>
+            <div class="form-group">
+              <label for="name">担当者名<span class="required-tag">必須</span></label>
+              <input class="form-control" type="text" id="name" name="name" required autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label for="tel">電話番号<span class="required-tag">必須</span></label>
+              <input class="form-control" type="tel" id="tel" name="tel" required autocomplete="tel" inputmode="tel" />
+            </div>
+            <div class="form-group">
+              <label for="email">メールアドレス<span class="required-tag">必須</span></label>
+              <input class="form-control" type="email" id="email" name="email" required autocomplete="email" inputmode="email" placeholder="example@example.com" />
+            </div>
+            <div class="form-group">
+              <label for="note">その他ご要望</label>
+              <textarea class="form-control" id="note" name="note" placeholder="例：参列予定人数、設備のご要望など"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg btn-block">確認画面へ進む</button>
+          </div>
+
+          <div data-step-panel="2" hidden>
+            <dl style="display:grid;gap:1rem;margin-bottom:2rem;font-size:14px;">
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">施設</dt>
+                <dd id="confirm-facility"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">希望日</dt>
+                <dd id="confirm-date"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">ご利用時間</dt>
+                <dd id="confirm-time"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">葬家名</dt>
+                <dd id="confirm-souka"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">葬儀社名</dt>
+                <dd id="confirm-company"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">担当者名</dt>
+                <dd id="confirm-name"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">電話番号</dt>
+                <dd id="confirm-tel"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid var(--gray-200);">
+                <dt style="color:var(--gray-600);font-weight:600;">メール</dt>
+                <dd id="confirm-email"></dd>
+              </div>
+              <div style="display:grid;grid-template-columns:7em 1fr;gap:0.5rem;">
+                <dt style="color:var(--gray-600);font-weight:600;">ご要望</dt>
+                <dd id="confirm-note"></dd>
+              </div>
+            </dl>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+              <button type="submit" class="btn btn-primary btn-lg btn-block">この内容で申し込む</button>
+              <button type="button" class="btn btn-secondary btn-lg btn-block" id="btn-back">入力画面へ戻る</button>
+            </div>
+          </div>
+
+          <div data-step-panel="3" hidden>
+            <div class="text-center" style="padding:1.5rem 0;">
+              <p style="font-family:var(--font-serif);font-size:1.35rem;color:var(--navy);letter-spacing:0.1em;margin-bottom:1rem;">
+                ご予約を受け付けました
+              </p>
+              <p style="color:var(--gray-600);font-size:14px;line-height:1.85;margin-bottom:2rem;">
+                お急ぎの場合はお電話（0467-98-7190）でもご連絡ください。
+              </p>
+              <button type="button" class="btn btn-primary btn-lg" id="btn-done-home">トップへ戻る</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+    <footer class="site-footer">
+    <div class="footer-inner footer-inner--minimal">
+      <nav class="footer-legal" aria-label="企業情報・ポリシー">
+        <a href="company.html">会社概要</a>
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="cookies.html">クッキーポリシー</a>
+      </nav>
+      <p class="footer-copy">&copy; <span data-year></span> 株式会社返礼屋 All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/common.js"></script>
+  <script src="js/local-config.js"></script>
+  <script src="js/sheets-config.js"></script>
+  <script src="js/admin-store.js"></script>
+  <script src="js/availability-store.js"></script>
+  <script src="js/reservation-extra.js?v=20261010a"></script>
+  <script src="js/calendar.js?v=20261010b"></script>
+  <script src="js/form.js?v=20261010a"></script>
+</body>
+</html>

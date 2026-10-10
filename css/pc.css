@@ -1,0 +1,294 @@
+/* 返礼屋 — PC専用レイアウト (768px〜) */
+@media (min-width: 768px) {
+  :root {
+    --header-h: 80px;
+  }
+
+  body {
+    font-size: 15px;
+  }
+
+  .menu-toggle {
+    display: none !important;
+  }
+
+  .site-nav {
+    display: flex !important;
+    align-items: center;
+    gap: 1.75rem;
+    margin-right: auto;
+  }
+
+  .nav-drawer-close {
+    display: none;
+  }
+
+  .nav-actions-sp {
+    display: none !important;
+  }
+
+  .header-actions {
+    display: flex !important;
+  }
+
+  /* Hero — full-bleed */
+  .hero {
+    position: relative;
+    min-height: calc(100vh - var(--header-h));
+    min-height: calc(100dvh - var(--header-h));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .hero__bg {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        105deg,
+        rgba(18, 32, 51, 0.58) 0%,
+        rgba(18, 32, 51, 0.38) 45%,
+        rgba(18, 32, 51, 0.48) 100%
+      ),
+      url('../images/facility-hero.jpg') center / cover no-repeat;
+    transform: scale(1.02);
+    animation: heroZoom 18s var(--ease) infinite alternate;
+  }
+
+  @keyframes heroZoom {
+    from {
+      transform: scale(1.02);
+    }
+    to {
+      transform: scale(1.08);
+    }
+  }
+
+  .hero__content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: var(--white);
+    padding: 2rem;
+    max-width: 800px;
+    animation: fadeUp 1s var(--ease) both;
+  }
+
+  .hero__brand {
+    font-family: var(--font-serif);
+    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    margin-bottom: 1.25rem;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .hero__brand small {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.28em;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    color: var(--gold-pale);
+    margin-top: 0.6rem;
+  }
+
+  .hero__catch {
+    font-family: var(--font-serif);
+    font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    line-height: 1.9;
+    margin-bottom: 2.25rem;
+    opacity: 0.95;
+  }
+
+  .hero__actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* Feature bar — horizontal */
+  .feature-bar {
+    background: linear-gradient(180deg, var(--gray-100) 0%, var(--off-white) 100%);
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .feature-bar__inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 2rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .feature-item__icon {
+    width: 48px;
+    height: 48px;
+    color: var(--navy);
+  }
+
+  .feature-item__title {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--navy);
+    letter-spacing: 0.08em;
+  }
+
+  .feature-item__desc {
+    font-size: 12px;
+    color: var(--gray-600);
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+  }
+
+  .feature-divider {
+    display: none;
+  }
+
+  /* Card grids — side by side */
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .contact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 1100px) {
+    .contact-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .calendar-layout {
+    grid-template-columns: 1fr;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .calendar-tabs {
+    display: none;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  .cal-day {
+    min-height: 64px;
+    font-size: 14px;
+  }
+
+  .form-wrap {
+    padding: 3rem;
+  }
+
+  /* Top page preview sections */
+  .cta-band {
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy));
+    color: var(--white);
+    text-align: center;
+    padding: 4rem 1.5rem;
+  }
+
+  .cta-band h2 {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 1rem;
+  }
+
+  .cta-band p {
+    opacity: 0.85;
+    margin-bottom: 1.75rem;
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+  }
+
+  .cta-band__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.85rem;
+  }
+
+  .pc-only {
+    display: inline;
+  }
+
+  /* Portal PC */
+  .portal-choices {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .portal-choice {
+    min-height: 240px;
+  }
+
+  .service-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .pc-break {
+    display: block;
+  }
+
+  .service-intro__close {
+    max-width: 44rem;
+  }
+
+  /* Shop PC */
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .product-detail {
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+  }
+
+  .cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .cat-tile {
+    min-height: 140px;
+  }
+
+  .rank-row {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.5rem 1.25rem;
+  }
+
+  .rank-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .service-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

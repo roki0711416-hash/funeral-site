@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>商品管理｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css" />
+  <style>
+    .prod-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
+    .prod-tabs button.is-active { background:#1a2f4a; color:#fff; border-color:#1a2f4a; }
+    .prod-grid { display:none; }
+    .prod-grid.is-active { display:block; }
+    .prod-thumb { width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--admin-border); background:#f5f5f5; }
+    .form-grid { display:grid; gap:0.85rem; }
+    .form-grid label { display:flex; flex-direction:column; gap:0.35rem; font-size:12px; color:#5c5852; font-weight:600; }
+    .form-grid label[hidden] { display:none; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      padding:0.55rem 0.7rem; border:1px solid var(--admin-border); border-radius:6px; font:inherit; color:#2e2c29;
+    }
+    .form-grid textarea { min-height:88px; resize:vertical; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+    .img-preview { width:100%; max-width:220px; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--admin-border); background:#f7f5f2; }
+    .img-presets { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.35rem; }
+    .img-presets button { padding:0; border:2px solid transparent; border-radius:6px; overflow:hidden; cursor:pointer; background:none; }
+    .img-presets button.is-on { border-color:#1a2f4a; }
+    .img-presets img { width:44px; height:44px; object-fit:cover; display:block; }
+    .check-row { display:flex; gap:1rem; align-items:center; font-size:13px; color:#2e2c29; }
+    .check-row label { flex-direction:row; align-items:center; gap:0.4rem; font-weight:500; }
+    .cat-group td { background:#f4f6f8; padding:0.7rem 0.85rem; }
+    .cat-group__bar { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; }
+    .cat-group__name { font-weight:700; color:#1a2f4a; }
+    .cat-group__count { margin-left:0.45rem; font-size:12px; font-weight:500; color:#6b6860; }
+    .catalog-notice { margin:0 0 1rem; font-size:13px; }
+    .catalog-notice.is-error { color:#9b2c2c; font-weight:700; }
+    .catalog-notice.is-ok { color:#1a2f4a; }
+    tr.is-deleting td { opacity:0.45; }
+    @media (max-width:700px){ .form-row-2{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>商品管理</h1>
+            <p class="meta">カテゴリ・写真・価格・掲載のオンオフを設定できます</p>
+          </div>
+        </div>
+        <div class="admin-topbar__actions">
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-new">新規追加</button>
+        </div>
+      </div>
+
+      <p id="catalog-notice" class="catalog-notice" hidden></p>
+      <div class="prod-tabs">
+        <button type="button" class="admin-btn admin-btn-ghost is-active" data-tab="products">商品</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-tab="categories">カテゴリ</button>
+      </div>
+
+      <div class="admin-panel prod-grid is-active" id="panel-products">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table-products">
+            <thead>
+              <tr>
+                <th>写真</th>
+                <th>商品名</th>
+                <th>価格</th>
+                <th>掲載</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-panel prod-grid" id="panel-categories">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table-categories">
+            <thead>
+              <tr>
+                <th>写真</th>
+                <th>カテゴリ名</th>
+                <th>表示順</th>
+                <th>価格帯</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js"></script>
+  <script src="../js/catalog-seed.js?v=20261005m"></script>
+  <script src="../js/catalog-store.js?v=20261005m"></script>
+  <script src="../js/admin-ui.js"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('products', { skipStoreRefresh: true }))) throw new Error('auth');
+
+      let mode = 'products';
+      let editingId = null;
+      let productCategory = 'all';
+
+      function notify(message, isError) {
+        const el = document.getElementById('catalog-notice');
+        el.hidden = !message;
+        el.textContent = message || '';
+        el.classList.toggle('is-error', !!isError);
+        el.classList.toggle('is-ok', !!message && !isError);
+      }
+
+      function imgSrc(src) {
+        const s = String(src || '');
+        if (!s) return '';
+        if (
+          s.startsWith('data:') ||
+          s.startsWith('http') ||
+          s.startsWith('../') ||
+          s.startsWith('/')
+        ) {
+          return esc(s);
+        }
+        return '../' + esc(s);
+      }
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function shipLabel(product) {
+        const supplier = HenreiyaCatalog.getSuppliers().find((row) => row.id === product.supplierId);
+        const temp = product.storage === 'frozen' ? '冷凍' : product.storage === 'chilled' ? '冷蔵' : '常温';
+        const origin = supplier ? supplier.name : '発送元未設定';
+        return origin + ' / ' + temp + (product.shippingIncluded ? ' / 送料込み' : '');
+      }
+
+      function switchTab(tab, categoryId) {
+        mode = tab;
+        if (tab === 'products') productCategory = categoryId || 'all';
+        document.querySelectorAll('.prod-tabs button').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.tab === tab);
+        });
+        document.getElementById('panel-products').classList.toggle('is-active', tab === 'products');
+        document.getElementById('panel-categories').classList.toggle('is-active', tab === 'categories');
+        document.getElementById('btn-new').textContent =
+          tab === 'products' ? '商品を追加' : 'カテゴリを追加';
+        render();
+      }
+
+      document.querySelectorAll('.prod-tabs button').forEach((b) => {
+        b.addEventListener('click', () => switchTab(b.dataset.tab));
+      });
+
+      function render() {
+        renderProducts();
+        renderCategories();
+      }
+
+      function productRow(p) {
+        return `<tr>
+            <td>${p.image ? `<img class="prod-thumb" src="${imgSrc(p.image)}" alt="" loading="lazy" decoding="async" />` : '<span style="font-size:11px;color:#6b6860;">写真未設定</span>'}</td>
+            <td>${esc(p.name)}<br /><span style="font-size:11px;color:#6b6860;">${esc(p.id)}</span><br /><span style="font-size:11px;color:#6b6860;">${esc(shipLabel(p))}</span></td>
+            <td>${Number(p.price || 0).toLocaleString('ja-JP')}円</td>
+            <td>${p.published === false ? '<span class="badge badge-cancelled">非公開</span>' : '<span class="badge badge-completed">公開</span>'}${p.featured ? ' <span class="badge badge-confirmed">注目</span>' : ''}</td>
+            <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-edit-p="${esc(p.id)}">編集</button>
+              <button type="button" class="admin-btn admin-btn-danger" data-del-p="${esc(p.id)}">削除</button>
+            </td>
+          </tr>`;
+      }
+
+      function renderProducts() {
+        const products = HenreiyaCatalog.getProducts(true);
+        const cats = HenreiyaCatalog.getCategories(true);
+        const tbody = document.querySelector('#table-products tbody');
+        const groups = [];
+        cats.forEach((c) => {
+          if (productCategory !== 'all' && productCategory !== c.id) return;
+          groups.push({
+            id: c.id,
+            name: c.name,
+            items: products.filter((p) => p.categoryId === c.id),
+          });
+        });
+        if (productCategory === 'all') {
+          const known = new Set(cats.map((c) => c.id));
+          const orphans = products.filter((p) => !known.has(p.categoryId));
+          if (orphans.length) groups.push({ id: '', name: '未分類', items: orphans });
+        }
+        if (!groups.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">商品がありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = groups
+          .map((group) => {
+            const rows = group.items.length
+              ? group.items.map(productRow).join('')
+              : '<tr><td colspan="5" class="empty-state">このカテゴリの商品はまだありません</td></tr>';
+            const addBtn = group.id
+              ? `<button type="button" class="admin-btn admin-btn-ghost" data-add-in="${esc(group.id)}">このカテゴリに追加</button>`
+              : '';
+            return `<tr class="cat-group"><td colspan="5"><div class="cat-group__bar"><span><span class="cat-group__name">${esc(group.name)}</span><span class="cat-group__count">${group.items.length}点</span></span>${addBtn}</div></td></tr>${rows}`;
+          })
+          .join('');
+        tbody.querySelectorAll('[data-edit-p]').forEach((btn) => {
+          btn.addEventListener('click', () => openProductEditor(btn.dataset.editP));
+        });
+        tbody.querySelectorAll('[data-add-in]').forEach((btn) => {
+          btn.addEventListener('click', () => openProductEditor(null, btn.dataset.addIn));
+        });
+        tbody.querySelectorAll('[data-del-p]').forEach((btn) => {
+          btn.addEventListener('click', () => askDeleteProduct(btn));
+        });
+      }
+
+      function askDeleteProduct(btn) {
+        const id = btn.getAttribute('data-del-p');
+        const cell = btn.closest('td');
+        const row = btn.closest('tr');
+        if (!id || !cell || cell.dataset.confirming === '1') return;
+        cell.dataset.confirming = '1';
+        if (row) row.classList.add('is-deleting');
+        cell.innerHTML =
+          '<button type="button" class="admin-btn admin-btn-danger">削除する</button>' +
+          '<button type="button" class="admin-btn admin-btn-ghost">やめる</button>';
+        const [yes, no] = cell.querySelectorAll('button');
+        no.addEventListener('click', () => render());
+        yes.addEventListener('click', async () => {
+          yes.disabled = true;
+          no.disabled = true;
+          yes.textContent = '削除中';
+          notify('削除しています…', false);
+          try {
+            await HenreiyaCatalog.deleteProduct(id);
+            notify('商品を削除しました。', false);
+            render();
+          } catch (err) {
+            notify(err.message || '削除に失敗しました。商品は残っています。', true);
+            render();
+          }
+        });
+      }
+
+      function renderCategories() {
+        const list = HenreiyaCatalog.getCategories(true);
+        const tbody = document.querySelector('#table-categories tbody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">カテゴリがありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map(
+            (c) => `<tr>
+            <td><img class="prod-thumb" src="${imgSrc(c.image)}" alt="" loading="lazy" decoding="async" /></td>
+            <td>${esc(c.name)}<br /><span style="font-size:11px;color:#6b6860;">${esc(c.id)}</span></td>
+            <td>${c.sortOrder || '—'}</td>
+            <td>${Number(c.priceFrom || 0).toLocaleString('ja-JP')}円〜</td>
+            <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-open-c="${esc(c.id)}">商品</button>
+              <button type="button" class="admin-btn admin-btn-ghost" data-edit-c="${esc(c.id)}">編集</button>
+              <button type="button" class="admin-btn admin-btn-danger" data-del-c="${esc(c.id)}">削除</button>
+            </td>
+          </tr>`
+          )
+          .join('');
+        tbody.querySelectorAll('[data-open-c]').forEach((btn) => {
+          btn.addEventListener('click', () => switchTab('products', btn.dataset.openC));
+        });
+        tbody.querySelectorAll('[data-edit-c]').forEach((btn) => {
+          btn.addEventListener('click', () => openCategoryEditor(btn.dataset.editC));
+        });
+        tbody.querySelectorAll('[data-del-c]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('このカテゴリを削除しますか？')) return;
+            try {
+              await HenreiyaCatalog.deleteCategory(btn.dataset.delC);
+              render();
+            } catch (e) {
+              alert(e.message || String(e));
+            }
+          });
+        });
+      }
+
+      function imagePresetsHtml(selected) {
+        return HenreiyaCatalog.IMAGE_PRESETS.map(
+          (src) =>
+            `<button type="button" class="preset ${src === selected ? 'is-on' : ''}" data-src="${esc(src)}"><img src="../${esc(src)}" alt="" /></button>`
+        ).join('');
+      }
+
+      function bindImageFields(root) {
+        const urlInput = root.querySelector('[name="image"]');
+        const preview = root.querySelector('#img-preview');
+        const fileInput = root.querySelector('#img-file');
+        const setPreview = (src) => {
+          if (!src) {
+            preview.hidden = true;
+            preview.removeAttribute('src');
+            return;
+          }
+          preview.hidden = false;
+          preview.src = src.startsWith('data:') || src.startsWith('http') ? src : '../' + src;
+        };
+        setPreview(urlInput.value);
+        root.querySelectorAll('.preset').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            urlInput.value = btn.dataset.src;
+            root.querySelectorAll('.preset').forEach((b) => b.classList.remove('is-on'));
+            btn.classList.add('is-on');
+            setPreview(btn.dataset.src);
+          });
+        });
+        urlInput.addEventListener('input', () => setPreview(urlInput.value));
+        fileInput?.addEventListener('change', async () => {
+          const file = fileInput.files && fileInput.files[0];
+          if (!file) return;
+          fileInput.disabled = true;
+          try {
+            const fitted = fileInput.dataset.fit === 'shop';
+            const result = fitted ? await fitShopImage(file) : await compressImage(file);
+            const dataUrl = fitted ? result.display : result;
+            if (dataUrl.length > 45000) {
+              alert('この画像は保存できない大きさです。別の写真を選んでください。');
+              return;
+            }
+            urlInput.value = dataUrl;
+            if (fitted) {
+              const originalInput = root.querySelector('[name="imageOriginal"]');
+              if (originalInput) originalInput.value = result.original || '';
+            }
+            setPreview(dataUrl);
+          } catch (err) {
+            console.warn(err);
+            alert('画像を読み込めませんでした。別のファイルを選んでください。');
+          } finally {
+            fileInput.disabled = false;
+          }
+        });
+      }
+
+      function fitShopImage(file) {
+        const limit = 42000;
+        const frame = 800;
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          const reader = new FileReader();
+          const originalReady = new Promise((done) => {
+            reader.onload = () => done(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = () => done('');
+          });
+          reader.readAsDataURL(file);
+          img.onload = async () => {
+            URL.revokeObjectURL(url);
+            const original = await originalReady;
+            const scale = Math.min(1, frame / img.width, frame / img.height);
+            const dw = Math.max(1, Math.round(img.width * scale));
+            const dh = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = frame;
+            canvas.height = frame;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, frame, frame);
+            ctx.drawImage(img, Math.round((frame - dw) / 2), Math.round((frame - dh) / 2), dw, dh);
+            const qualities = [0.86, 0.74, 0.62, 0.5, 0.4];
+            let last = '';
+            for (let i = 0; i < qualities.length; i++) {
+              last = canvas.toDataURL('image/jpeg', qualities[i]);
+              if (last.length <= limit) break;
+            }
+            resolve({
+              display: last,
+              original: original.length > 0 && original.length <= 12000 ? original : '',
+            });
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('image'));
+          };
+          img.src = url;
+        });
+      }
+
+      function compressImage(file) {
+        const limit = 42000;
+        const steps = [
+          [800, 0.72],
+          [640, 0.62],
+          [480, 0.52],
+        ];
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            let last = '';
+            for (let i = 0; i < steps.length; i++) {
+              const maxW = steps[i][0];
+              const quality = steps[i][1];
+              const ratio = Math.min(1, maxW / img.width, maxW / img.height);
+              const w = Math.max(1, Math.round(img.width * ratio));
+              const h = Math.max(1, Math.round(img.height * ratio));
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              last = canvas.toDataURL('image/jpeg', quality);
+              if (last.length <= limit) {
+                resolve(last);
+                return;
+              }
+            }
+            resolve(last);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('image'));
+          };
+          img.src = url;
+        });
+      }
+
+      function openProductEditor(id, categoryId) {
+        const p = id ? HenreiyaCatalog.getProduct(id) : null;
+        editingId = p ? p.id : null;
+        const cats = HenreiyaCatalog.getCategories(true);
+        const selectedCategory =
+          (p && p.categoryId) ||
+          categoryId ||
+          (productCategory !== 'all' ? productCategory : cats[0] && cats[0].id) ||
+          '';
+        AdminUI.openModal(`
+          <h3>${p ? '商品を編集' : '商品を追加'}</h3>
+          <form class="form-grid" id="prod-form">
+            <div class="form-row-2">
+              <label>申込番号<input name="applicationNo" value="${esc(p?.applicationNo || '')}" placeholder="例：C014-014" /></label>
+              <label>商品名<input name="name" required value="${esc(p?.name || '')}" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>税抜価格（円）<input name="priceExTax" type="number" min="0" step="1" value="${esc(p?.priceExTax ?? '')}" placeholder="例：1600" /></label>
+              <label>税込価格（円）<input name="price" type="number" min="0" step="1" required value="${esc(p?.price ?? '')}" placeholder="例：1628" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>賞味期間（製造日から）<input name="shelfLife" value="${esc(p?.shelfLife || '')}" placeholder="例：常温 120日間" /></label>
+              <label>商品重量<input name="quantityText" value="${esc(p?.quantityText || '')}" placeholder="例：365g" /></label>
+            </div>
+            <label>商品内容<textarea name="contents" placeholder="例：北海道産小豆もなか×8">${esc(p?.contents || '')}</textarea></label>
+            <div class="form-row-2">
+              <label>箱サイズ<input name="boxSize" value="${esc(p?.boxSize || '')}" placeholder="例：W203×H55×45mm" /></label>
+              <label>三辺サイズ<input name="threeSize" value="${esc(p?.threeSize || '')}" placeholder="例：86" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>宅配サイズ<input name="deliverySize" value="${esc(p?.deliverySize || '')}" placeholder="例：45" /></label>
+              <label>のしサイズ<input name="noshiSize" value="${esc(p?.noshiSize || '')}" placeholder="例：小" /></label>
+            </div>
+            <label>カテゴリ
+              <select name="categoryId" id="category-select" required>
+                ${cats
+                  .map(
+                    (c) =>
+                      `<option value="${esc(c.id)}" ${c.id === selectedCategory ? 'selected' : ''}>${esc(c.name)}</option>`
+                  )
+                  .join('')}
+                <option value="__new__">＋ 新しいカテゴリを入力</option>
+              </select>
+            </label>
+            <label id="new-category-field" hidden>新しいカテゴリ名
+              <input name="categoryName" id="category-name" placeholder="カテゴリ名を入力" autocomplete="off" />
+            </label>
+            <div class="form-row-2">
+              <label>発送元
+                <select name="supplierId">
+                  <option value="">未設定</option>
+                  ${HenreiyaCatalog.getSuppliers()
+                    .map(
+                      (supplier) =>
+                        `<option value="${esc(supplier.id)}" ${p && p.supplierId === supplier.id ? 'selected' : ''}>${esc(supplier.name)}</option>`
+                    )
+                    .join('')}
+                </select>
+              </label>
+              <label>温度帯
+                <select name="storage">
+                  <option value="ambient" ${!p || p.storage === 'ambient' || !p.storage ? 'selected' : ''}>常温</option>
+                  <option value="chilled" ${p && p.storage === 'chilled' ? 'selected' : ''}>冷蔵</option>
+                  <option value="frozen" ${p && p.storage === 'frozen' ? 'selected' : ''}>冷凍</option>
+                </select>
+              </label>
+            </div>
+            <label>同梱条件
+              <input name="bundleKey" value="${esc(p?.bundleKey || '')}" placeholder="空欄同士は、同じ発送元・同じ温度帯で同梱します" />
+            </label>
+            <div class="check-row">
+              <label><input type="checkbox" name="shippingIncluded" ${p?.shippingIncluded ? 'checked' : ''} /> 送料込み（同じ便に通常商品があると、その便の送料は通常どおりかかります）</label>
+            </div>
+            <label>説明（表のコピー）<textarea name="desc" placeholder="表の「コピー」はこちらに記入します">${esc(p?.desc || '')}</textarea></label>
+            <label>表示順<input name="sortOrder" type="number" value="${esc(p?.sortOrder ?? '')}" /></label>
+            <label>画像パスまたはURL
+              <input name="image" value="${esc(p?.image || '')}" placeholder="未設定のまま保存できます" />
+            </label>
+              <p style="font-size:11px;color:#6b6860;margin:0;">写真はあとから追加できます。写真がない商品は公開ショップに出ません。アップロードした画像は、商品全体が収まるように余白を足してショップ用に整えます。</p>
+              <div>
+              <img id="img-preview" class="img-preview" alt="ショップ掲載時のプレビュー" ${p?.image ? '' : 'hidden'} />
+              <div class="img-presets">${imagePresetsHtml(p?.image || '')}</div>
+              <input type="hidden" name="imageOriginal" value="" />
+              <label style="margin-top:0.6rem;">画像ファイルから設定（任意）
+                <input type="file" id="img-file" data-fit="shop" accept="image/jpeg,image/png,image/webp,image/*" />
+              </label>
+              <p style="font-size:11px;color:#6b6860;margin-top:0.35rem;">サイズや縦横比が違っていても、そのままで登録できます。プレビューがショップでの表示です。</p>
+            </div>
+            <div class="check-row">
+              <label><input type="checkbox" name="published" ${p && p.published !== false ? 'checked' : ''} /> 公開する</label>
+              <label><input type="checkbox" name="featured" ${p?.featured ? 'checked' : ''} /> ランキング注目</label>
+            </div>
+            <div class="admin-modal__actions">
+              <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="close-modal">閉じる</button>
+            </div>
+          </form>
+        `);
+        const modal = document.getElementById('admin-modal');
+        bindImageFields(modal);
+        const categorySelect = document.getElementById('category-select');
+        const newCategoryField = document.getElementById('new-category-field');
+        const categoryNameInput = document.getElementById('category-name');
+        function syncCategoryField() {
+          const isNew = categorySelect.value === '__new__';
+          newCategoryField.hidden = !isNew;
+          categoryNameInput.required = isNew;
+          if (!isNew) categoryNameInput.value = '';
+        }
+        categorySelect.addEventListener('change', syncCategoryField);
+        document.getElementById('close-modal').onclick = AdminUI.closeModal;
+        document.getElementById('prod-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const submit = form.querySelector('[type="submit"]');
+          const fd = new FormData(form);
+          submit.disabled = true;
+          try {
+            let categoryId = fd.get('categoryId');
+            if (categoryId === '__new__') {
+              const categoryName = String(fd.get('categoryName') || '').trim();
+              if (!categoryName) throw new Error('新しいカテゴリ名を入力してください。');
+              const catsNow = HenreiyaCatalog.getCategories(true);
+              let category = catsNow.find((c) => String(c.name || '').trim() === categoryName);
+              if (!category) {
+                category = await HenreiyaCatalog.saveCategory({
+                  name: categoryName,
+                  image: fd.get('image') || 'images/cat-western.jpg',
+                  priceFrom: fd.get('price') || 0,
+                });
+              }
+              categoryId = category.id;
+            }
+            const image = String(fd.get('image') || '').trim();
+            const wantPublished = !!fd.get('published');
+            await HenreiyaCatalog.saveProduct({
+              id: editingId || undefined,
+              name: fd.get('name'),
+              applicationNo: fd.get('applicationNo'),
+              price: fd.get('price'),
+              priceExTax: fd.get('priceExTax'),
+              shelfLife: fd.get('shelfLife'),
+              contents: fd.get('contents'),
+              boxSize: fd.get('boxSize'),
+              quantityText: fd.get('quantityText'),
+              threeSize: fd.get('threeSize'),
+              deliverySize: fd.get('deliverySize'),
+              noshiSize: fd.get('noshiSize'),
+              supplierId: fd.get('supplierId'),
+              imageOriginal: String(fd.get('imageOriginal') || '').trim() || undefined,
+              storage: fd.get('storage'),
+              bundleKey: fd.get('bundleKey'),
+              shippingIncluded: !!fd.get('shippingIncluded'),
+              categoryId,
+              desc: fd.get('desc'),
+              sortOrder: fd.get('sortOrder') || undefined,
+              image,
+              published: wantPublished && !!image,
+              featured: !!fd.get('featured'),
+            });
+            AdminUI.closeModal();
+            notify(
+              wantPublished && !image
+                ? '保存しました。写真がないため、公開ショップには出ていません。'
+                : '保存しました。公開中の商品は返礼品ショップに表示されます。',
+              false
+            );
+            render();
+          } catch (err) {
+            notify(err.message || '保存に失敗しました。', true);
+            submit.disabled = false;
+          }
+        };
+      }
+
+      function openCategoryEditor(id) {
+        const c = id ? HenreiyaCatalog.getCategory(id) : null;
+        editingId = c ? c.id : null;
+        AdminUI.openModal(`
+          <h3>${c ? 'カテゴリを編集' : 'カテゴリを追加'}</h3>
+          <form class="form-grid" id="cat-form">
+            <label>カテゴリ名<input name="name" required value="${esc(c?.name || '')}" /></label>
+            ${
+              c
+                ? `<label>ID（変更不可）<input name="id" value="${esc(c.id)}" readonly /></label>`
+                : `<label>ID（半角英数・任意）<input name="id" placeholder="例：western" pattern="[a-zA-Z0-9_-]+" /></label>`
+            }
+            <label>表示順<input name="sortOrder" type="number" value="${esc(c?.sortOrder ?? '')}" /></label>
+            <label>価格帯の表示（円〜）<input name="priceFrom" type="number" value="${esc(c?.priceFrom ?? '')}" /></label>
+            <label>画像パスまたはURL
+              <input name="image" required value="${esc(c?.image || 'images/cat-western.jpg')}" />
+            </label>
+            <div>
+              <img id="img-preview" class="img-preview" alt="プレビュー" />
+              <div class="img-presets">${imagePresetsHtml(c?.image || 'images/cat-western.jpg')}</div>
+              <label style="margin-top:0.6rem;">画像ファイルから設定（任意）
+                <input type="file" id="img-file" accept="image/*" />
+              </label>
+            </div>
+            <div class="admin-modal__actions">
+              <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="close-modal">閉じる</button>
+            </div>
+          </form>
+        `);
+        const modal = document.getElementById('admin-modal');
+        bindImageFields(modal);
+        document.getElementById('close-modal').onclick = AdminUI.closeModal;
+        document.getElementById('cat-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const submit = form.querySelector('[type="submit"]');
+          const fd = new FormData(form);
+          submit.disabled = true;
+          try {
+            await HenreiyaCatalog.saveCategory({
+              id: fd.get('id') || editingId || undefined,
+              name: fd.get('name'),
+              sortOrder: fd.get('sortOrder') || undefined,
+              priceFrom: fd.get('priceFrom') || 0,
+              image: fd.get('image'),
+            });
+            AdminUI.closeModal();
+            notify('保存しました。', false);
+            render();
+          } catch (err) {
+            notify(err.message || '保存に失敗しました。', true);
+            submit.disabled = false;
+          }
+        };
+      }
+
+      document.getElementById('btn-new').addEventListener('click', () => {
+        if (mode === 'products') openProductEditor(null);
+        else openCategoryEditor(null);
+      });
+
+      switchTab('products');
+      HenreiyaCatalog.refresh()
+        .then((result) => {
+          if (result && result.ok === false && result.error) notify(result.error, true);
+          render();
+        })
+        .catch((err) => notify(err.message || '商品一覧を読み込めませんでした。', true));
+    })();
+  </script>
+</body>
+</html>

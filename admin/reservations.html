@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>予約管理｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css?v=20261010b" />
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>予約管理</h1>
+            <p class="meta">カレンダー、時間の空き、予約の受付と変更</p>
+          </div>
+        </div>
+        <div class="admin-topbar__actions">
+          <select id="filter-month" aria-label="予約一覧の月" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
+            <option value="this" selected>今月</option>
+            <option value="next">来月</option>
+            <option value="all">すべての予約</option>
+          </select>
+          <select id="filter-status" aria-label="予約状況" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
+            <option value="all">すべての状態</option>
+            <option value="new">仮予約</option>
+            <option value="confirmed">予約確定</option>
+            <option value="in_progress">利用中</option>
+            <option value="completed">利用終了</option>
+            <option value="cancelled">キャンセル</option>
+          </select>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btn-new-block">予約受付停止</button>
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-new-reservation">新規予約</button>
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-export-excel">Excel出力（月別）</button>
+        </div>
+      </div>
+
+      <p id="reserve-notice" class="admin-notice" hidden></p>
+
+      <div class="admin-cal-layout">
+        <div class="admin-panel admin-cal-panel">
+          <div class="admin-cal__toolbar">
+            <button type="button" class="admin-btn admin-btn-ghost" id="board-cal-prev" aria-label="前の月">‹</button>
+            <h2 class="admin-cal__title" id="board-cal-title">—</h2>
+            <button type="button" class="admin-btn admin-btn-ghost" id="board-cal-next" aria-label="次の月">›</button>
+          </div>
+          <p class="reserve-legend"><span>🟢 予約可能</span><span>🔴 予約済み</span><span>⚫ 予約不可</span></p>
+          <div class="admin-cal__weekdays" aria-hidden="true">
+            <span class="is-sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="is-sat">土</span>
+          </div>
+          <div class="admin-cal__grid" id="board-cal-grid" role="grid" aria-label="月間カレンダー"></div>
+        </div>
+        <div class="admin-panel admin-cal-daypanel">
+          <div class="admin-panel__head">
+            <h2 id="board-day-title">日付を選択してください</h2>
+          </div>
+          <div class="slot-list" id="board-day-list"></div>
+          <div id="board-day-blocks"></div>
+        </div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="admin-panel__head">
+          <h2>最新情報</h2>
+          <button type="button" class="admin-btn admin-btn-ghost" id="btn-all-logs">すべて見る</button>
+        </div>
+        <div class="reserve-log-list" id="board-logs"></div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table">
+            <thead>
+              <tr>
+                <th>予約日</th>
+                <th>開始時間</th>
+                <th>終了時間</th>
+                <th>予約者名</th>
+                <th>利用内容</th>
+                <th>予約状況</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js"></script>
+  <script src="../js/availability-store.js"></script>
+  <script src="../js/reservation-extra.js?v=20261010a"></script>
+  <script src="../js/admin-ui.js"></script>
+  <script src="../js/admin-export.js"></script>
+  <script src="../js/admin-board.js?v=20261010b"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('reservations'))) throw new Error('auth');
+      await HenreiyaAdminBoard.start();
+
+      function monthKey(offset) {
+        const date = new Date();
+        date.setDate(1);
+        date.setMonth(date.getMonth() + (offset || 0));
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return date.getFullYear() + '-' + month;
+      }
+
+      function selectedMonthKey() {
+        const value = document.getElementById('filter-month').value;
+        if (value === 'all') return 'all';
+        if (value === 'this') return monthKey(0);
+        if (value === 'next') return monthKey(1);
+        return value;
+      }
+
+      function ensureMonthOption(key) {
+        const sel = document.getElementById('filter-month');
+        if ([...sel.options].some((option) => option.value === key)) return;
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = AdminExport.monthLabel(key);
+        sel.appendChild(option);
+      }
+
+      function fillMonthOptions() {
+        const sel = document.getElementById('filter-month');
+        const prev = sel.value || 'this';
+        const thisKey = monthKey(0);
+        const nextKey = monthKey(1);
+        const keys = AdminExport.collectMonthKeys(
+          HenreiyaStore.getReservations(),
+          AdminExport.reservationMonthKey
+        ).filter((key) => key !== thisKey && key !== nextKey && key !== 'unknown');
+        sel.innerHTML =
+          '<option value="this">今月</option>' +
+          '<option value="next">来月</option>' +
+          '<option value="all">すべての予約</option>' +
+          keys
+            .map((key) => `<option value="${key}">${AdminExport.monthLabel(key)}</option>`)
+            .join('');
+        const allowed = ['this', 'next', 'all'].concat(keys);
+        sel.value = allowed.includes(prev) ? prev : 'this';
+      }
+
+      function filteredList() {
+        const status = document.getElementById('filter-status').value;
+        const month = selectedMonthKey();
+        let list = HenreiyaStore.getReservations();
+        if (status !== 'all') list = list.filter((r) => r.status === status);
+        if (month !== 'all') {
+          list = list.filter((r) => AdminExport.reservationMonthKey(r) === month);
+        }
+        return list.slice().sort((a, b) => {
+          const dateA = a.dateStart || a.date || '';
+          const dateB = b.dateStart || b.date || '';
+          if (dateA !== dateB) return String(dateA).localeCompare(String(dateB));
+          return String(a.timeStart || '').localeCompare(String(b.timeStart || ''));
+        });
+      }
+
+      function updateExportLabel() {
+        const month = selectedMonthKey();
+        const btn = document.getElementById('btn-export-excel');
+        btn.textContent =
+          month === 'all'
+            ? 'Excel出力（月別）'
+            : 'Excel出力（' + AdminExport.monthLabel(month) + '）';
+      }
+
+      function text(value) {
+        return String(value == null || value === '' ? '—' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function render() {
+        const list = filteredList();
+        const tbody = document.querySelector('#table tbody');
+        if (!list.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="empty-state">該当する予約がありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map((r) => {
+            const cancelled = r.status === 'cancelled';
+            const usage = r.usage || r.souka || r.facility || '—';
+            return `<tr class="${cancelled ? 'is-cancelled' : ''}">
+          <td>${text(r.date || r.dateStart)}</td>
+          <td>${text(r.timeStart)}</td>
+          <td>${text(r.timeEnd)}</td>
+          <td>${text(r.name || r.company)}</td>
+          <td>${text(usage)}</td>
+          <td><span class="badge badge-${text(r.status)}">${text(HenreiyaStore.reservationStatusLabel(r.status))}</span></td>
+          <td class="actions">
+            <button type="button" class="admin-btn admin-btn-ghost" data-view="${text(r.id)}">詳細</button>
+            ${cancelled ? '' : '<button type="button" class="admin-btn admin-btn-danger" data-cancel="' + text(r.id) + '">キャンセル</button>'}
+          </td>
+        </tr>`;
+          })
+          .join('');
+
+        tbody.querySelectorAll('[data-view]').forEach((btn) => {
+          btn.addEventListener('click', () => HenreiyaAdminBoard.openDetail(btn.dataset.view));
+        });
+        tbody.querySelectorAll('[data-cancel]').forEach((btn) => {
+          btn.addEventListener('click', () => HenreiyaAdminBoard.cancelReservation(btn.dataset.cancel));
+        });
+      }
+
+      document.getElementById('filter-status').addEventListener('change', render);
+      document.getElementById('filter-month').addEventListener('change', () => {
+        const key = selectedMonthKey();
+        if (key !== 'all') HenreiyaAdminBoard.showMonth(key);
+        updateExportLabel();
+        render();
+      });
+      document.addEventListener('henreiya-calendar-month', (event) => {
+        const sel = document.getElementById('filter-month');
+        if (sel.value === 'all') return;
+        const key = event.detail;
+        if (key === monthKey(0)) sel.value = 'this';
+        else if (key === monthKey(1)) sel.value = 'next';
+        else {
+          ensureMonthOption(key);
+          sel.value = key;
+        }
+        updateExportLabel();
+        render();
+      });
+      document.getElementById('btn-export-excel').addEventListener('click', () => {
+        const list = filteredList();
+        if (!list.length) {
+          alert('出力する予約がありません');
+          return;
+        }
+        const month = selectedMonthKey();
+        AdminExport.exportReservations(list, { month });
+      });
+      document.addEventListener('henreiya-reservations-updated', () => {
+        fillMonthOptions();
+        render();
+      });
+      fillMonthOptions();
+      updateExportLabel();
+      render();
+    })();
+  </script>
+</body>
+</html>

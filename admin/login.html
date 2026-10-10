@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>管理画面ログイン｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body class="admin-body">
+  <div class="login-page">
+    <div class="login-card">
+      <h1>株式会社返礼屋 管理画面</h1>
+      <p class="sub">OPERATOR LOGIN</p>
+      <div class="login-error" id="login-error" role="alert">IDまたはパスワードが正しくありません</div>
+      <form id="login-form">
+        <div class="admin-field">
+          <label for="user">ログインID</label>
+          <input type="text" id="user" name="user" autocomplete="username" required />
+        </div>
+        <div class="admin-field">
+          <label for="pass">パスワード</label>
+          <input type="password" id="pass" name="pass" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="admin-btn admin-btn-primary admin-btn-block">ログイン</button>
+      </form>
+      <div class="login-hint">
+        パスワードはこの画面には表示しません。
+      </div>
+      <p style="text-align:center;margin-top:1.25rem;font-size:12px;">
+        <a href="../index.html" style="color:#6b6860;text-decoration:underline;">サイトへ戻る</a>
+      </p>
+    </div>
+  </div>
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script>
+    if (HenreiyaAuth.isLoggedIn()) {
+      location.href = 'index.html';
+    }
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const user = document.getElementById('user').value.trim();
+      const pass = document.getElementById('pass').value;
+      const err = document.getElementById('login-error');
+      if (HenreiyaAuth.login(user, pass)) {
+        const params = new URLSearchParams(location.search);
+        const next = params.get('next') || 'index.html';
+        location.href = next.replace(/[^a-z0-9._-]/gi, '') || 'index.html';
+      } else {
+        err.classList.add('is-visible');
+      }
+    });
+  </script>
+</body>
+</html>

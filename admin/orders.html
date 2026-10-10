@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>注文管理｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>注文管理</h1>
+            <p class="meta">返礼品ショップの注文一覧（受付月で絞り込み）</p>
+          </div>
+        </div>
+        <div class="admin-topbar__actions">
+          <select id="filter-month" aria-label="対象月" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
+            <option value="all">すべての月</option>
+          </select>
+          <select id="filter-supplier" aria-label="発送元" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
+            <option value="all">すべての発送元</option>
+          </select>
+          <select id="filter-status" style="padding:0.5rem 0.75rem;border:1px solid var(--admin-border);border-radius:6px;">
+            <option value="all">すべての状態</option>
+            <option value="new">新規</option>
+            <option value="awaiting_payment">入金待ち</option>
+            <option value="confirmed">確認済</option>
+            <option value="in_progress">対応中</option>
+            <option value="shipped">発送済</option>
+            <option value="completed">完了</option>
+            <option value="cancelled">キャンセル</option>
+          </select>
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-export-excel">Excel出力（月別）</button>
+        </div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table">
+            <thead>
+              <tr>
+                <th>受付日時</th>
+                <th>ID</th>
+                <th>お名前</th>
+                <th>点数</th>
+                <th>合計</th>
+                <th>状態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js"></script>
+  <script src="../js/payment-config.js"></script>
+  <script src="../js/admin-ui.js"></script>
+  <script src="../js/admin-export.js"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('orders'))) throw new Error('auth');
+
+      function fillMonthOptions() {
+        const sel = document.getElementById('filter-month');
+        const prev = sel.value || 'all';
+        const keys = AdminExport.collectMonthKeys(
+          HenreiyaStore.getOrders(),
+          AdminExport.orderMonthKey
+        );
+        sel.innerHTML =
+          '<option value="all">すべての月</option>' +
+          keys
+            .map(
+              (k) =>
+                `<option value="${k}">${AdminExport.monthLabel(k)}</option>`
+            )
+            .join('');
+        sel.value = keys.includes(prev) ? prev : 'all';
+      }
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function fillSupplierOptions() {
+        const sel = document.getElementById('filter-supplier');
+        const prev = sel.value || 'all';
+        const map = new Map();
+        HenreiyaStore.getOrders().forEach((order) => {
+          (order.parcels || []).forEach((parcel) => {
+            const key = parcel.supplierId || parcel.supplierName;
+            if (!key) return;
+            map.set(key, parcel.supplierName || key);
+          });
+        });
+        sel.innerHTML =
+          '<option value="all">すべての発送元</option>' +
+          [...map.entries()]
+            .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`)
+            .join('');
+        sel.value = [...sel.options].some((option) => option.value === prev) ? prev : 'all';
+      }
+
+      function filteredList() {
+        const status = document.getElementById('filter-status').value;
+        const month = document.getElementById('filter-month').value;
+        const supplier = document.getElementById('filter-supplier').value;
+        let list = HenreiyaStore.getOrders();
+        if (status !== 'all') list = list.filter((o) => o.status === status);
+        if (supplier !== 'all') {
+          list = list.filter((o) =>
+            (o.parcels || []).some((parcel) => parcel.supplierId === supplier || parcel.supplierName === supplier)
+          );
+        }
+        if (month !== 'all') {
+          list = list.filter((o) => AdminExport.orderMonthKey(o) === month);
+        }
+        return list;
+      }
+
+      function updateExportLabel() {
+        const month = document.getElementById('filter-month').value;
+        const btn = document.getElementById('btn-export-excel');
+        btn.textContent =
+          month === 'all'
+            ? 'Excel出力（月別）'
+            : 'Excel出力（' + AdminExport.monthLabel(month) + '）';
+      }
+
+      function render() {
+        const list = filteredList();
+        const tbody = document.querySelector('#table tbody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state">該当する注文がありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map((o) => {
+            const count = (o.items || []).reduce((s, i) => s + Number(i.qty || 0), 0);
+            return `<tr>
+            <td>${HenreiyaStore.formatDateTime(o.createdAt)}</td>
+            <td style="font-size:11px;color:#6b6860;">${o.id}</td>
+            <td>${o.name || '—'}<br /><span style="font-size:11px;color:#6b6860;">${o.tel || ''}${o.shipCount > 1 ? ' ／ 送り先' + o.shipCount + '件' : ''}</span></td>
+            <td>${count}点</td>
+            <td>${HenreiyaStore.formatPrice(o.total)}</td>
+            <td>${AdminUI.badge(o.status)}</td>
+            <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-view="${o.id}">詳細</button>
+              <button type="button" class="admin-btn admin-btn-danger" data-del="${o.id}">削除</button>
+            </td>
+          </tr>`;
+          })
+          .join('');
+
+        tbody.querySelectorAll('[data-view]').forEach((btn) => {
+          btn.addEventListener('click', () => showDetail(btn.dataset.view));
+        });
+        tbody.querySelectorAll('[data-del]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('この注文を削除しますか？')) return;
+            await HenreiyaStore.deleteOrder(btn.dataset.del);
+            fillMonthOptions();
+            render();
+          });
+        });
+      }
+
+      function showDetail(id) {
+        const o = HenreiyaStore.getOrders().find((x) => x.id === id);
+        if (!o) return;
+        const itemsHtml = (o.items || [])
+          .map((i) => {
+            const origin = i.supplierName
+              ? ` / ${esc(i.supplierName)} ${esc(i.storageLabel || '')}`
+              : '';
+            return `<li>${esc(i.name)} × ${i.qty}（${HenreiyaStore.formatPrice(i.price * i.qty)}）${origin}</li>`;
+          })
+          .join('');
+        const parcelsHtml = (o.parcels || [])
+          .map((parcel, index) => {
+            const names = (parcel.items || []).map((item) => `${esc(item.name)}×${item.qty}`).join('、');
+            return `<div style="margin-bottom:0.85rem;padding-bottom:0.85rem;border-bottom:1px solid #e2dfd9;">
+              <strong>配送便 ${index + 1}</strong> ${esc(parcel.supplierName || '—')} / ${esc(parcel.storageLabel || '')}<br />
+              商品: ${names || '—'}<br />
+              送料: ${parcel.fee == null ? '—' : parcel.freeShipping ? '送料無料' : HenreiyaStore.formatPrice(parcel.fee)}
+              ${parcel.leadTime ? '<br />発送目安: ' + esc(parcel.leadTime) : ''}
+              <label style="display:block;margin-top:0.4rem;">発送状況
+                <select data-parcel-index="${index}">
+                  <option value="unshipped" ${parcel.status !== 'shipped' ? 'selected' : ''}>未発送</option>
+                  <option value="shipped" ${parcel.status === 'shipped' ? 'selected' : ''}>発送済</option>
+                </select>
+              </label>
+              <label style="display:block;margin-top:0.35rem;">追跡番号
+                <input data-tracking-index="${index}" value="${esc(parcel.trackingNo || '')}" style="width:100%;padding:0.4rem;" />
+              </label>
+            </div>`;
+          })
+          .join('');
+        const moneyHtml =
+          o.goodsTotal == null && o.shippingTotal == null
+            ? `<div><dt>合計</dt><dd><strong>${HenreiyaStore.formatPrice(o.total)}</strong></dd></div>`
+            : `<div><dt>商品代</dt><dd>${HenreiyaStore.formatPrice(o.goodsTotal)}</dd></div>
+               <div><dt>送料</dt><dd>${o.shippingTotal == null ? '—' : HenreiyaStore.formatPrice(o.shippingTotal)}</dd></div>
+               <div><dt>合計</dt><dd><strong>${HenreiyaStore.formatPrice(o.total)}</strong></dd></div>`;
+
+        let shipsHtml = '';
+        if (o.shipments && o.shipments.length) {
+          shipsHtml = o.shipments
+            .map((s, i) => {
+              const sItems = (s.items || [])
+                .map((it) => `${it.name}×${it.qty}`)
+                .join('、');
+              return `<div style="margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid #e2dfd9;">
+              <strong>送り先 ${i + 1}</strong><br />
+              ${s.shipName || '—'} / ${s.shipTel || '—'}<br />
+              〒${s.shipZip || ''} ${s.shipAddr || ''}<br />
+              ${s.note ? '備考: ' + s.note + '<br />' : ''}
+              商品: ${sItems || '—'}
+            </div>`;
+            })
+            .join('');
+        } else {
+          shipsHtml = `〒${o.shipZip || o.zip || ''} ${o.shipAddr || o.addr || ''}<br />${o.shipName || ''} / ${o.shipTel || ''}`;
+        }
+
+        AdminUI.openModal(`
+        <h3>注文詳細</h3>
+        <dl class="detail-dl">
+          <div><dt>ID</dt><dd>${o.id}</dd></div>
+          <div><dt>受付</dt><dd>${HenreiyaStore.formatDateTime(o.createdAt)}</dd></div>
+          <div><dt>お支払い</dt><dd>${HenreiyaPayment.paymentLabel(o.paymentMethod || 'bank_transfer')}</dd></div>
+          <div><dt>注文者</dt><dd>${o.name || '—'} / ${o.tel || '—'}</dd></div>
+          <div><dt>メール</dt><dd>${o.email || '—'}</dd></div>
+          <div><dt>ご用途</dt><dd>${o.purpose || (o.purposes || []).join('、') || '—'}</dd></div>
+          <div><dt>のし用紙</dt><dd>${o.noshiType || '—'}</dd></div>
+          <div><dt>続柄</dt><dd>${o.relation || '—'}</dd></div>
+          <div><dt>故人名</dt><dd>${o.deceasedName || '—'}</dd></div>
+          <div><dt>戒名</dt><dd>${o.kaimyo || '（なし）'}</dd></div>
+          <div><dt>発送月</dt><dd>${o.shipMonth || '—'}</dd></div>
+          <div><dt>喪主名</dt><dd>${o.mournerName || '—'}</dd></div>
+          <div><dt>喪主住所</dt><dd>${[o.mournerZip ? '〒' + o.mournerZip : '', o.mournerPref || '', o.mournerAddr || ''].filter(Boolean).join(' ') || '—'}</dd></div>
+          <div><dt>送り先数</dt><dd>${o.shipCount || (o.shipments ? o.shipments.length : 1)}件</dd></div>
+          <div><dt>送り先</dt><dd>${shipsHtml}</dd></div>
+          <div><dt>全体備考</dt><dd>${o.note || '（なし）'}</dd></div>
+          <div><dt>商品</dt><dd><ul style="padding-left:1.1rem;list-style:disc;">${itemsHtml}</ul></dd></div>
+          ${moneyHtml}
+          ${parcelsHtml ? `<div><dt>配送便</dt><dd>${parcelsHtml}</dd></div>` : ''}
+          <div><dt>状態</dt><dd>${AdminUI.statusSelect(o.status, o.id)}</dd></div>
+        </dl>
+        <div class="admin-modal__actions">
+          <button type="button" class="admin-btn admin-btn-primary" id="save-status">状態を保存</button>
+          <button type="button" class="admin-btn admin-btn-ghost" id="close-modal">閉じる</button>
+        </div>
+      `);
+        document.getElementById('close-modal').onclick = AdminUI.closeModal;
+        document.getElementById('save-status').onclick = async () => {
+          const sel = document.querySelector(`[data-status-for="${o.id}"]`);
+          const patch = { status: sel.value };
+          if (o.parcels && o.parcels.length) {
+            patch.parcels = o.parcels.map((parcel, index) => {
+              const statusEl = document.querySelector(`[data-parcel-index="${index}"]`);
+              const trackEl = document.querySelector(`[data-tracking-index="${index}"]`);
+              return {
+                ...parcel,
+                status: statusEl ? statusEl.value : parcel.status,
+                trackingNo: trackEl ? trackEl.value.trim() : parcel.trackingNo || '',
+              };
+            });
+          }
+          await HenreiyaStore.updateOrder(o.id, patch);
+          AdminUI.closeModal();
+          render();
+        };
+      }
+
+      document.getElementById('filter-status').addEventListener('change', render);
+      document.getElementById('filter-supplier').addEventListener('change', render);
+      document.getElementById('filter-month').addEventListener('change', () => {
+        updateExportLabel();
+        render();
+      });
+      document.getElementById('btn-export-excel').addEventListener('click', () => {
+        const list = filteredList();
+        if (!list.length) {
+          alert('出力する注文がありません');
+          return;
+        }
+        const month = document.getElementById('filter-month').value;
+        AdminExport.exportOrders(list, { month });
+      });
+      fillMonthOptions();
+      fillSupplierOptions();
+      updateExportLabel();
+      render();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>仕入れ先｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css" />
+  <style>
+    .catalog-notice { margin:0 0 1rem; font-size:13px; }
+    .catalog-notice.is-error { color:#9b2c2c; font-weight:700; }
+    .catalog-notice.is-ok { color:#1a2f4a; }
+    .supplier-editor { display:grid; gap:0.85rem; }
+    .supplier-editor label { display:flex; flex-direction:column; gap:0.35rem; font-size:12px; color:#5c5852; font-weight:600; }
+    .supplier-editor input, .supplier-editor textarea {
+      padding:0.55rem 0.7rem; border:1px solid var(--admin-border); border-radius:6px; font:inherit; color:#2e2c29;
+    }
+    .rate-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .rate-table th, .rate-table td { border-bottom:1px solid var(--admin-border); padding:0.4rem 0.35rem; text-align:left; }
+    .rate-table input[type="number"] { width:8rem; padding:0.35rem 0.45rem; }
+    .rate-help { font-size:13px; color:#5c5852; line-height:1.7; margin:0 0 1rem; }
+  </style>
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>仕入れ先</h1>
+            <p class="meta">直送元ごとの都道府県別送料・配送不可・発送目安</p>
+          </div>
+        </div>
+        <div class="admin-topbar__actions">
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-new">仕入れ先を追加</button>
+        </div>
+      </div>
+
+      <p class="rate-help">商品代が10,000円以上の注文は送料無料です。10,000円未満では、空欄の都道府県は未設定となり注文できません。配送不可にした都道府県は、金額にかかわらず注文できません。金額を入れると、10,000円未満の注文ではその金額が1便につき1回かかります。</p>
+      <p id="catalog-notice" class="catalog-notice" hidden></p>
+
+      <div class="admin-panel">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table">
+            <thead>
+              <tr>
+                <th>仕入れ先</th>
+                <th>発送目安</th>
+                <th>送料</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-panel" id="editor" hidden>
+        <form class="supplier-editor" id="supplier-form">
+          <label>仕入れ先名<input name="name" required /></label>
+          <label>発送目安<input name="leadTime" placeholder="例：ご注文から3〜5日で発送" /></label>
+          <label>メモ<textarea name="note" placeholder="社内メモ。公開ページには出ません"></textarea></label>
+          <div class="admin-table-wrap">
+            <table class="rate-table" id="rate-table">
+              <thead>
+                <tr><th>都道府県</th><th>送料（円）</th><th>配送不可</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="admin-modal__actions">
+            <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+            <button type="button" class="admin-btn admin-btn-ghost" id="btn-cancel">閉じる</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js"></script>
+  <script src="../js/shipping-calc.js?v=20261005k"></script>
+  <script src="../js/catalog-seed.js?v=20261005k"></script>
+  <script src="../js/catalog-store.js?v=20261005k"></script>
+  <script src="../js/admin-ui.js"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('suppliers'))) throw new Error('auth');
+      const loaded = await HenreiyaCatalog.refresh();
+      const notice = document.getElementById('catalog-notice');
+      let editingId = null;
+
+      function notify(message, isError) {
+        notice.hidden = false;
+        notice.textContent = message;
+        notice.className = 'catalog-notice ' + (isError ? 'is-error' : 'is-ok');
+      }
+
+      if (!loaded.ok) notify(loaded.error || '仕入れ先を読み込めませんでした。', true);
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function rateSummary(supplier) {
+        const rates = supplier.rates || {};
+        const set = HenreiyaShipping.PREFECTURES.filter((pref) => rates[pref] != null && rates[pref] !== '').length;
+        const blocked = (supplier.undeliverable || []).length;
+        return '設定 ' + set + '件 / 配送不可 ' + blocked + '件';
+      }
+
+      function render() {
+        const list = HenreiyaCatalog.getSuppliers();
+        const tbody = document.querySelector('#table tbody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="empty-state">仕入れ先はまだありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map(
+            (supplier) => `<tr>
+              <td>${esc(supplier.name)}</td>
+              <td>${esc(supplier.leadTime || '—')}</td>
+              <td>${esc(rateSummary(supplier))}</td>
+              <td class="actions">
+                <button type="button" class="admin-btn admin-btn-ghost" data-edit="${esc(supplier.id)}">編集</button>
+                <button type="button" class="admin-btn admin-btn-danger" data-del="${esc(supplier.id)}">削除</button>
+              </td>
+            </tr>`
+          )
+          .join('');
+        tbody.querySelectorAll('[data-edit]').forEach((btn) => {
+          btn.addEventListener('click', () => openEditor(btn.dataset.edit));
+        });
+        tbody.querySelectorAll('[data-del]').forEach((btn) => {
+          btn.addEventListener('click', () => removeSupplier(btn.dataset.del));
+        });
+      }
+
+      function openEditor(id) {
+        const supplier = id ? HenreiyaCatalog.getSuppliers().find((row) => row.id === id) : null;
+        editingId = supplier ? supplier.id : null;
+        const form = document.getElementById('supplier-form');
+        form.elements.name.value = supplier ? supplier.name : '';
+        form.elements.leadTime.value = supplier ? supplier.leadTime || '' : '';
+        form.elements.note.value = supplier ? supplier.note || '' : '';
+        const body = document.querySelector('#rate-table tbody');
+        body.innerHTML = HenreiyaShipping.PREFECTURES.map((pref) => {
+          const blocked = supplier && (supplier.undeliverable || []).indexOf(pref) >= 0;
+          const rate = supplier && supplier.rates ? supplier.rates[pref] : null;
+          const value = rate == null || rate === '' ? '' : String(rate);
+          return `<tr>
+            <td>${esc(pref)}</td>
+            <td><input type="number" min="0" step="1" data-pref="${esc(pref)}" value="${esc(value)}" placeholder="未設定" ${blocked ? 'disabled' : ''} /></td>
+            <td><label><input type="checkbox" data-block="${esc(pref)}" ${blocked ? 'checked' : ''} /> 不可</label></td>
+          </tr>`;
+        }).join('');
+        body.querySelectorAll('[data-block]').forEach((box) => {
+          box.addEventListener('change', () => {
+            const input = body.querySelector(`[data-pref="${box.dataset.block}"]`);
+            input.disabled = box.checked;
+            if (box.checked) input.value = '';
+          });
+        });
+        document.getElementById('editor').hidden = false;
+        form.elements.name.focus();
+      }
+
+      async function removeSupplier(id) {
+        if (!confirm('この仕入れ先を削除しますか？')) return;
+        try {
+          await HenreiyaCatalog.deleteSupplier(id);
+          if (editingId === id) document.getElementById('editor').hidden = true;
+          notify('仕入れ先を削除しました。', false);
+          render();
+        } catch (err) {
+          notify(err.message || '削除に失敗しました。', true);
+        }
+      }
+
+      document.getElementById('btn-new').addEventListener('click', () => openEditor(null));
+      document.getElementById('btn-cancel').addEventListener('click', () => {
+        document.getElementById('editor').hidden = true;
+      });
+      document.getElementById('supplier-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const submit = form.querySelector('[type="submit"]');
+        const rates = {};
+        const undeliverable = [];
+        HenreiyaShipping.PREFECTURES.forEach((pref) => {
+          const blocked = form.querySelector(`[data-block="${pref}"]`).checked;
+          if (blocked) {
+            undeliverable.push(pref);
+            rates[pref] = null;
+            return;
+          }
+          rates[pref] = form.querySelector(`[data-pref="${pref}"]`).value;
+        });
+        submit.disabled = true;
+        try {
+          await HenreiyaCatalog.saveSupplier({
+            id: editingId || undefined,
+            name: form.elements.name.value,
+            leadTime: form.elements.leadTime.value,
+            note: form.elements.note.value,
+            rates,
+            undeliverable,
+          });
+          document.getElementById('editor').hidden = true;
+          notify('保存しました。別のパソコンでも同じ内容を読み込めます。', false);
+          render();
+        } catch (err) {
+          notify(err.message || '保存に失敗しました。', true);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

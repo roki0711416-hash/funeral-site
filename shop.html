@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="株式会社返礼屋の返礼品オンラインショップ｜香典返し・会葬御礼" />
+  <title>返礼品ショップ｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/shop.css?v=20261010a" />
+  <link rel="stylesheet" href="css/pc.css" />
+  <link rel="stylesheet" href="css/sp.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <nav class="site-nav" id="site-nav" aria-label="メインメニュー">
+        <button type="button" class="nav-drawer-close" aria-label="メニューを閉じる">×</button>
+        <ul class="nav-list">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="facility-home.html">施設予約</a></li>
+          <li><a href="shop.html">返礼品ショップ</a></li>
+          <li><a href="company.html">会社概要</a></li>
+          <li><a href="contact.html">お問い合わせ</a></li>
+        </ul>
+        <div class="nav-actions-sp">
+          <a href="cart.html" class="btn btn-primary">カートを見る</a>
+        </div>
+      </nav>
+      <div class="header-actions header-actions--pc">
+        <a href="cart.html" class="cart-link">
+          カート
+          <span class="cart-badge" data-cart-count hidden>0</span>
+        </a>
+      </div>
+      <button type="button" class="menu-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-overlay" aria-hidden="true"></div>
+
+  <main>
+    <div class="page-hero">
+      <h1>返礼品ショップ</h1>
+      <p>香典返し・会葬御礼にふさわしい品をオンラインで</p>
+    </div>
+
+    <section class="section section-muted" id="category">
+      <div class="section-inner">
+        <div class="cat-heading reveal">
+          <h2 class="cat-heading__en">CATEGORY</h2>
+          <p class="cat-heading__ja">カテゴリから選ぶ</p>
+        </div>
+        <div class="cat-grid" id="cat-grid"></div>
+        <div class="text-center" style="margin-top:1.75rem;">
+          <a href="#products" class="btn btn-secondary btn-lg" id="btn-all-items">全てのアイテム一覧へ →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section rank-section" id="ranking">
+      <div class="section-inner" id="rank-root"></div>
+    </section>
+
+    <section class="section section-muted" id="products">
+      <div class="section-inner">
+        <div class="shop-toolbar">
+          <div>
+            <h2 class="section-title" style="text-align:left;font-size:1.25rem;" id="products-title">全ての商品</h2>
+            <p class="section-lead" style="text-align:left;margin-top:0.35rem;" id="products-lead">価格はすべて税込表示です</p>
+          </div>
+          <label class="shop-sort" for="shop-sort">並び替え
+            <select id="shop-sort">
+              <option value="">並び替え</option>
+              <option value="asc">価格の安い順</option>
+              <option value="desc">価格の高い順</option>
+            </select>
+          </label>
+          <a href="cart.html" class="cart-link">
+            カートを見る
+            <span class="cart-badge" data-cart-count hidden>0</span>
+          </a>
+        </div>
+        <div class="shop-filters" id="shop-filters" role="tablist" aria-label="カテゴリ絞り込み"></div>
+        <div class="product-grid" id="product-grid" style="margin-top:1.5rem;"></div>
+      </div>
+    </section>
+  </main>
+
+    <footer class="site-footer">
+    <div class="footer-inner footer-inner--minimal">
+      <nav class="footer-legal" aria-label="企業情報・ポリシー">
+        <a href="company.html">会社概要</a>
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="cookies.html">クッキーポリシー</a>
+      </nav>
+      <p class="footer-copy">&copy; <span data-year></span> 株式会社返礼屋 All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/common.js"></script>
+  <script src="js/local-config.js"></script>
+  <script src="js/sheets-config.js"></script>
+  <script src="js/catalog-seed.js?v=20261005j"></script>
+  <script src="js/catalog-store.js?v=20261005n"></script>
+  <script src="js/shop.js?v=20261005j"></script>
+  <script>
+    (async function () {
+      const loaded = await HenreiyaCatalog.refresh();
+      HenreiyaShop.syncFromCatalog();
+      if (!loaded.ok) {
+        const leadEl = document.getElementById('products-lead');
+        const grid = document.getElementById('product-grid');
+        if (leadEl) leadEl.textContent = loaded.error || '商品一覧を読み込めませんでした。';
+        if (grid) {
+          grid.innerHTML = '<p class="cart-empty">商品一覧を読み込めませんでした。時間をおいて再度開いてください。</p>';
+        }
+        return;
+      }
+
+      const params = new URLSearchParams(location.search);
+      let current = params.get('cat') || 'all';
+      if (current !== 'all' && !HenreiyaShop.getCategory(current)) current = 'all';
+
+      HenreiyaShop.renderCategoryGrid(document.getElementById('cat-grid'));
+
+      const filters = document.getElementById('shop-filters');
+      filters.innerHTML =
+        `<button type="button" class="shop-filter" data-filter="all">すべて</button>` +
+        HenreiyaShop.CATEGORIES.map(
+          (c) =>
+            `<button type="button" class="shop-filter" data-filter="${c.id}">${c.name}</button>`
+        ).join('');
+
+      const titleEl = document.getElementById('products-title');
+      const leadEl = document.getElementById('products-lead');
+      const grid = document.getElementById('product-grid');
+      const rankRoot = document.getElementById('rank-root');
+      const sortEl = document.getElementById('shop-sort');
+      if (params.get('sort') === 'asc' || params.get('sort') === 'desc') sortEl.value = params.get('sort');
+
+      function apply(cat) {
+        current = cat;
+        filters.querySelectorAll('.shop-filter').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.filter === cat);
+        });
+        const meta = HenreiyaShop.getCategory(cat);
+        if (meta) {
+          titleEl.textContent = meta.name;
+          leadEl.textContent =
+            '税込 ' +
+            HenreiyaShop.formatPrice(meta.priceFrom) +
+            '〜 ／ 全' +
+            HenreiyaShop.productsByCategory(cat).length +
+            '点';
+        } else {
+          titleEl.textContent = '全ての商品';
+          leadEl.textContent =
+            '価格はすべて税込表示です ／ 全' + HenreiyaShop.PRODUCTS.length + '点';
+        }
+        HenreiyaShop.renderRanking(rankRoot, cat);
+        const sort = sortEl.value === 'asc' || sortEl.value === 'desc' ? sortEl.value : '';
+        HenreiyaShop.renderProductGrid(grid, cat, sort);
+        const url = new URL(location.href);
+        if (cat === 'all') url.searchParams.delete('cat');
+        else url.searchParams.set('cat', cat);
+        if (sort) url.searchParams.set('sort', sort);
+        else url.searchParams.delete('sort');
+        history.replaceState(null, '', url.pathname + url.search + (location.hash || '#category'));
+      }
+
+      filters.querySelectorAll('.shop-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          apply(btn.dataset.filter);
+          history.replaceState(null, '', location.pathname + location.search + '#products');
+          document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+      sortEl.addEventListener('change', () => apply(current));
+
+      document.getElementById('btn-all-items').addEventListener('click', (e) => {
+        e.preventDefault();
+        apply('all');
+        history.replaceState(null, '', location.pathname + location.search + '#products');
+        document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+      });
+
+      apply(current);
+      if (params.get('cat')) {
+        history.replaceState(null, '', location.pathname + location.search + '#products');
+        document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+      } else if (!location.hash || location.hash === '#category') {
+        history.replaceState(null, '', location.pathname + location.search + '#category');
+        document.getElementById('category').scrollIntoView({ behavior: 'auto', block: 'start' });
+      }
+    })();
+  </script>
+</body>
+</html>

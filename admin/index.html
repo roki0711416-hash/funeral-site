@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>ダッシュボード｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>ダッシュボード</h1>
+            <p class="meta">予約・注文・お問い合わせの概要</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="stats"></div>
+
+      <div class="admin-panel">
+        <div class="admin-panel__head">
+          <h2>最近の予約</h2>
+          <a href="reservations.html" class="admin-btn admin-btn-ghost">すべて見る</a>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="recent-reservations">
+            <thead>
+              <tr>
+                <th>受付日時</th>
+                <th>施設</th>
+                <th>希望日</th>
+                <th>担当</th>
+                <th>状態</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="admin-panel__head">
+          <h2>最近の注文</h2>
+          <a href="orders.html" class="admin-btn admin-btn-ghost">すべて見る</a>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="recent-orders">
+            <thead>
+              <tr>
+                <th>受付日時</th>
+                <th>お名前</th>
+                <th>金額</th>
+                <th>状態</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js"></script>
+  <script src="../js/admin-ui.js"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('dashboard'))) throw new Error('auth');
+
+      const reservations = HenreiyaStore.getReservations();
+      const orders = HenreiyaStore.getOrders();
+      const inquiries = HenreiyaStore.getInquiries();
+
+      const newR = reservations.filter((r) => r.status === 'new').length;
+      const newO = orders.filter((o) => o.status === 'new').length;
+      const newI = inquiries.filter((i) => i.status === 'new').length;
+
+      document.getElementById('stats').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-card__label">新規予約</div>
+        <div class="stat-card__value ${newR ? 'is-alert' : ''}">${newR}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">新規注文</div>
+        <div class="stat-card__value ${newO ? 'is-alert' : ''}">${newO}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">未対応お問い合わせ</div>
+        <div class="stat-card__value ${newI ? 'is-alert' : ''}">${newI}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">予約合計</div>
+        <div class="stat-card__value">${reservations.length}</div>
+      </div>
+    `;
+
+      const rBody = document.querySelector('#recent-reservations tbody');
+      const recentR = reservations.slice(0, 5);
+      rBody.innerHTML = recentR.length
+        ? recentR
+            .map(
+              (r) => `<tr>
+          <td>${HenreiyaStore.formatDateTime(r.createdAt)}</td>
+          <td>${r.facility || '—'}</td>
+          <td>${r.date || '—'}</td>
+          <td>${r.name || '—'}</td>
+          <td><span class="badge badge-${r.status}">${HenreiyaStore.reservationStatusLabel(r.status)}</span></td>
+        </tr>`
+            )
+            .join('')
+        : '<tr><td colspan="5" class="empty-state">予約はまだありません</td></tr>';
+
+      const oBody = document.querySelector('#recent-orders tbody');
+      const recentO = orders.slice(0, 5);
+      oBody.innerHTML = recentO.length
+        ? recentO
+            .map(
+              (o) => `<tr>
+          <td>${HenreiyaStore.formatDateTime(o.createdAt)}</td>
+          <td>${o.name || '—'}</td>
+          <td>${HenreiyaStore.formatPrice(o.total)}</td>
+          <td>${AdminUI.badge(o.status)}</td>
+        </tr>`
+            )
+            .join('')
+        : '<tr><td colspan="4" class="empty-state">注文はまだありません</td></tr>';
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ショッピングカート｜株式会社返礼屋" />
+  <title>カート｜株式会社返礼屋</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/shop.css" />
+  <link rel="stylesheet" href="css/pc.css" />
+  <link rel="stylesheet" href="css/sp.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <nav class="site-nav" id="site-nav" aria-label="メインメニュー">
+        <button type="button" class="nav-drawer-close" aria-label="メニューを閉じる">×</button>
+        <ul class="nav-list">
+          <li><a href="index.html">ホーム</a></li>
+          <li><a href="facility-home.html">施設予約</a></li>
+          <li><a href="shop.html">返礼品ショップ</a></li>
+          <li><a href="company.html">会社概要</a></li>
+          <li><a href="contact.html">お問い合わせ</a></li>
+        </ul>
+        <div class="nav-actions-sp">
+          <a href="shop.html" class="btn btn-secondary">お買い物を続ける</a>
+        </div>
+      </nav>
+      <div class="header-actions header-actions--pc">
+        <a href="shop.html" class="btn btn-secondary">お買い物を続ける</a>
+      </div>
+      <button type="button" class="menu-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-overlay" aria-hidden="true"></div>
+
+  <main>
+    <div class="page-hero">
+      <h1>ショッピングカート</h1>
+      <p>ご注文内容をご確認ください</p>
+    </div>
+
+    <section class="section">
+      <div class="section-inner" id="cart-root"></div>
+    </section>
+  </main>
+
+    <footer class="site-footer">
+    <div class="footer-inner footer-inner--minimal">
+      <nav class="footer-legal" aria-label="企業情報・ポリシー">
+        <a href="company.html">会社概要</a>
+        <a href="terms.html">利用規約</a>
+        <a href="privacy.html">プライバシーポリシー</a>
+        <a href="cookies.html">クッキーポリシー</a>
+      </nav>
+      <p class="footer-copy">&copy; <span data-year></span> 株式会社返礼屋 All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/common.js"></script>
+  <script src="js/local-config.js"></script>
+  <script src="js/sheets-config.js"></script>
+  <script src="js/catalog-seed.js?v=20261005j"></script>
+  <script src="js/catalog-store.js?v=20261005n"></script>
+  <script src="js/shop.js"></script>
+  <script>
+    (async function () {
+      await HenreiyaCatalog.refresh();
+      HenreiyaShop.syncFromCatalog();
+
+      const root = document.getElementById('cart-root');
+
+      function render() {
+        const lines = HenreiyaShop.cartLines();
+        if (!lines.length) {
+          root.innerHTML = `
+            <div class="cart-empty">
+              <p>カートに商品がありません。</p>
+              <a href="shop.html" class="btn btn-primary btn-lg" style="margin-top:1.5rem;">商品一覧へ</a>
+            </div>`;
+          return;
+        }
+
+        root.innerHTML = `
+          <table class="cart-table">
+            <thead>
+              <tr>
+                <th>商品</th>
+                <th>単価</th>
+                <th>数量</th>
+                <th>小計</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lines
+                .map(
+                  (l) => `
+                <tr data-id="${l.id}">
+                  <td data-label="商品">
+                    <div class="cart-item">
+                      <img src="${l.image}" alt="" width="64" height="64" />
+                      <span class="cart-item__name">${l.name}</span>
+                    </div>
+                  </td>
+                  <td data-label="単価">${HenreiyaShop.formatPrice(l.price)}</td>
+                  <td data-label="数量">
+                    <input type="number" min="1" max="99" value="${l.qty}" data-qty="${l.id}" style="width:72px;padding:0.5rem;border:1px solid var(--gray-200);border-radius:4px;text-align:center;" />
+                  </td>
+                  <td data-label="小計">${HenreiyaShop.formatPrice(l.subtotal)}</td>
+                  <td data-label="">
+                    <button type="button" class="btn btn-secondary" data-remove="${l.id}" style="padding:0.4rem 0.8rem;font-size:12px;">削除</button>
+                  </td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+          <div class="cart-summary">
+            <div class="cart-summary__row"><span>商品合計</span><span>${HenreiyaShop.formatPrice(HenreiyaShop.cartTotal())}</span></div>
+            <div class="cart-summary__row"><span>送料</span><span>${HenreiyaShop.cartTotal() >= 10000 ? '送料無料（商品代10,000円以上）' : '10,000円未満はお届け先の確定後に計算'}</span></div>
+            <p class="ship-hint">商品代が10,000円以上のときは送料無料です。</p>
+            <div class="cart-summary__total"><span>合計（税込）</span><span>${HenreiyaShop.formatPrice(HenreiyaShop.cartTotal())}</span></div>
+            <a href="checkout.html" class="btn btn-primary btn-lg btn-block">ご注文手続きへ</a>
+          </div>`;
+
+        root.querySelectorAll('[data-qty]').forEach((input) => {
+          input.addEventListener('change', () => {
+            HenreiyaShop.setQty(input.dataset.qty, input.value);
+            render();
+          });
+        });
+        root.querySelectorAll('[data-remove]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            HenreiyaShop.removeItem(btn.dataset.remove);
+            render();
+          });
+        });
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
