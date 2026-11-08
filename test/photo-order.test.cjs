@@ -73,6 +73,47 @@ test('カタログ詳細の解決関数はショップ公開条件を維持す�
   assert.equal(api.isShopVisible(products[1]), false);
 });
 
+test('初期画像をメインにしても保存前の並べ替えで実写真に戻さない', () => {
+  const store = fs.readFileSync(path.join(__dirname, '..', 'patches', 'production', 'js', 'catalog-store.js'), 'utf8');
+  assert.equal(store.includes('if (!list.length) push(image);\n      return dedupeImages(list);'), true);
+  assert.equal(store.includes('写真の順番は保存されていません'), true);
+  assert.equal(store.includes('if (nextCustom.length) return next;'), true);
+  const preset = 'images/product-sweets.jpg';
+  const cutaway = 'data:image/webp;base64,CUTAWAY';
+  global.window = global;
+  global.localStorage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {},
+  };
+  global.sessionStorage = global.localStorage;
+  global.location = { pathname: '/shop.html' };
+  delete require.cache[require.resolve('../patches/production/js/catalog-store.js')];
+  require('../patches/production/js/catalog-store.js');
+  const shown = global.HenreiyaCatalog.displayImage({
+    image: preset,
+    images: [preset, cutaway],
+  });
+  assert.equal(shown, preset);
+});
+
+test('公開詳細は保存したメイン画像を初期画像だからといって後ろへ回さない', () => {
+  const seo = require('../patches/production/js/product-seo.js');
+  const preset = 'images/product-sweets.jpg';
+  const cutaway = 'data:image/webp;base64,CUTAWAY';
+  const rendered = seo.render({
+    id: 'C004-014',
+    name: 'もなか合わせ',
+    category: '和菓子',
+    categoryId: 'wagashi',
+    price: 1620,
+    image: preset,
+    images: [preset, cutaway],
+  });
+  assert.match(rendered.html, /id="product-gallery-main" src="images\/product-sweets.jpg"/);
+  assert.ok(rendered.html.indexOf(preset) < rendered.html.indexOf(cutaway));
+});
+
 test('本番パッチは逆順 unshift と data URL の2048文字却下を外している', () => {
   const root = path.join(__dirname, '..', 'patches', 'production');
   const admin = fs.readFileSync(path.join(root, 'admin', 'products.html'), 'utf8');

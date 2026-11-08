@@ -692,14 +692,24 @@ window.HenreiyaCatalog = (function () {
     return dedupeImages(list);
   }
 
-  /* 初期画像は、保存済みの写真より前に出さない。写真が無いときだけ初期画像を使う。 */
+  /* 写真と初期画像が混在するときも、編集画面で決めた順を動かさない。
+     初期画像だけの送信で、以前の実写真がある場合だけそれを前に戻す。 */
   function arrangeProductImages(prev, nextList) {
     const next = dedupeImages(nextList);
     const nextCustom = next.filter((src) => !isPlaceholderImage(src));
-    if (nextCustom.length) return dedupeImages(nextCustom.concat(next.filter(isPlaceholderImage)));
+    if (nextCustom.length) return next;
     const prevCustom = storedImages(prev).filter((src) => !isPlaceholderImage(src));
     if (!prevCustom.length) return next;
     return dedupeImages(prevCustom.concat(next.filter(isPlaceholderImage)));
+  }
+
+  function sameGallery(sent, product) {
+    const got = storedImages(product);
+    if (got.length !== sent.length) return false;
+    for (let i = 0; i < sent.length; i += 1) {
+      if (got[i] !== sent[i]) return false;
+    }
+    return true;
   }
 
   function normalizeProductImages(data, prev, image) {
@@ -712,6 +722,7 @@ window.HenreiyaCatalog = (function () {
     if (Array.isArray(data.images)) {
       data.images.forEach(push);
       if (!list.length) push(image);
+      return dedupeImages(list);
     } else {
       if (image) push(image);
       if (prev && Array.isArray(prev.images)) prev.images.forEach(push);
@@ -776,7 +787,16 @@ window.HenreiyaCatalog = (function () {
     }
     const saved = await persistInquiry(ROW.product + item.id, packed);
     const galleryOnly = !!(saved && saved.galleryOnly);
-    const stored = saved && saved.item ? { ...saved.item } : item;
+    let confirmed = null;
+    try {
+      confirmed = await loadAdminProduct(item.id);
+    } catch (err) {
+      throw new Error('保存後の写真を読み戻せませんでした。並びが保存されたとは表示しません。');
+    }
+    if (!confirmed || !sameGallery(images, confirmed)) {
+      throw new Error('写真の順番は保存されていません。再読み込みしても、選んだメイン画像のままではありません。');
+    }
+    const stored = { ...confirmed };
     delete stored.galleryOnly;
     await forgetDeleted('product', stored.id);
     const next = read(KEYS.products);

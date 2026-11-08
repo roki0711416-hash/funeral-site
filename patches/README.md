@@ -6,8 +6,9 @@
 
 - `patches/production/js/catalog-store.js` → 本番ソースの `src/js/catalog-store.js`
 - `patches/production/admin/products.html` → 本番ソースの `src/admin/products.html`
+- `patches/production/js/product-seo.js` → 本番ソースの `src/js/product-seo.js`
 
-`patches/henreiya-live-photo-public.patch` は同じ差分です。適用先のパスは `src/` です。
+配布用の3ファイルは `/opt/cursor/artifacts/henreiya-production-photo-fix.zip` です。古い2ファイル版のパッチだけを当てると、写真順の保存は直りません。
 
 Windows 側スナップショットの `api/catalog.js` は本番マニフェストに無く、`galleryOnly` も `?id=` の `product` もありません。本番 API の置き換えに使わないでください。
 
@@ -16,6 +17,8 @@ Windows 側スナップショットの `api/catalog.js` は本番マニフェス
 - 商品詳細は、`/api/catalog?id=` が `product` を返さないとき、ショップと同じ公開一覧から `id` または申込番号を探します。非公開と写真なしは詳細にも出しません。
 - 管理一覧は、長い data URL や `images` だけのギャラリーを「写真未設定」にしません。
 - 複数ファイル追加は、渡された順を保って先頭にまとめて足します。1枚ずつの `unshift` は使いません。ファイル選択ダイアログの並び自体はブラウザ依存なので、保存前の「メインにする」「前へ」「次へ」が確定操作です。
+- 編集画面が送った画像の順は、初期画像（`images/product-sweets.jpg` など）が先頭でも並べ直しません。保存後に管理APIから読み戻し、選んだメインと違う場合は成功メッセージを出さずエラーにします。
+- 公開詳細とショップの表示も、保存された先頭画像を初期画像だからと後ろへ回しません。
 
 ## この差分が変えないこと
 
