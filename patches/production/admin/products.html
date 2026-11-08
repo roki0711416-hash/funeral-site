@@ -438,6 +438,67 @@
 });
   </script>
   <script>
+/* 商品のカテゴリだけを付け替える。写真の一括保存とは別で、成功は読み戻しで確認する。 */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.HenreiyaCategoryAssign = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  function galleryList(product) {
+    const list = [];
+    const push = (src) => {
+      const value = String(src || '').trim();
+      if (!value || list.indexOf(value) !== -1) return;
+      list.push(value);
+    };
+    if (product) push(product.image);
+    if (product && Array.isArray(product.images)) product.images.forEach(push);
+    return list;
+  }
+
+  function categoryOnlyPayload(product, category) {
+    const next = Object.assign({}, product);
+    delete next.galleryOnly;
+    delete next.imageOriginal;
+    next.categoryId = category.id;
+    next.category = category.name;
+    return next;
+  }
+
+  function assessCategorySave(before, after, categoryId) {
+    if (!before || !after) {
+      return { ok: false, retry: false, reason: '保存後の商品を読み戻せませんでした。自動では再送しません。' };
+    }
+    if (String(after.categoryId || '') !== String(categoryId || '')) {
+      return { ok: false, retry: false, reason: 'カテゴリは保存されていません。写真はそのままです。自動では再送しません。' };
+    }
+    const previous = galleryList(before);
+    const current = galleryList(after);
+    if (previous.length !== current.length || previous.some((src, index) => src !== current[index])) {
+      return { ok: false, retry: false, reason: '写真が変わったため、カテゴリ変更は成功にしません。自動では再送しません。' };
+    }
+    if (String(before.name || '') !== String(after.name || '') || Number(before.price) !== Number(after.price)) {
+      return { ok: false, retry: false, reason: '商品名または価格が変わったため、ここで止めました。自動では再送しません。' };
+    }
+    if ((before.published !== false) !== (after.published !== false)) {
+      return { ok: false, retry: false, reason: '公開状態が変わったため、ここで止めました。自動では再送しません。' };
+    }
+    if (String(before.applicationNo || '') !== String(after.applicationNo || '')) {
+      return { ok: false, retry: false, reason: '申込番号が変わったため、ここで止めました。自動では再送しません。' };
+    }
+    return { ok: true, retry: false, reason: '' };
+  }
+
+  return {
+    galleryList: galleryList,
+    categoryOnlyPayload: categoryOnlyPayload,
+    assessCategorySave: assessCategorySave,
+  };
+});
+  </script>
+  <script>
     (async function () {
       if (!(await AdminUI.bootstrap('products', { skipStoreRefresh: true }))) throw new Error('auth');
 
@@ -556,6 +617,7 @@
             <td>${Number(p.price || 0).toLocaleString('ja-JP')}円</td>
             <td>${p.published === false ? '<span class="badge badge-cancelled">非公開</span>' : '<span class="badge badge-completed">公開</span>'}${p.featured ? ' <span class="badge badge-confirmed">注目</span>' : ''}</td>
             <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-category-p="${esc(p.id)}">カテゴリ</button>
               <button type="button" class="admin-btn admin-btn-ghost" data-edit-p="${esc(p.id)}">編集</button>
               <button type="button" class="admin-btn admin-btn-danger" data-del-p="${esc(p.id)}">削除</button>
             </td>
@@ -1528,12 +1590,78 @@
         }
       });
 
+      async function openCategoryAssign(id) {
+        const before = await HenreiyaCatalog.loadAdminProduct(id);
+        if (!before) {
+          notify('商品を読み戻せませんでした。自動では再送しません。', true);
+          return;
+        }
+        const cats = HenreiyaCatalog.getCategories(true).filter((category) => category && category.id);
+        AdminUI.openModal(`
+          <h3>カテゴリだけ付け替える</h3>
+          <p class="rate-help">${esc(before.name)}（${esc(before.id)}）。写真、商品名、価格、公開状態は変えません。一度だけ保存し、読み戻して確認します。</p>
+          <form class="form-grid" id="category-assign-form">
+            <label>カテゴリ
+              <select name="categoryId" required>
+                ${cats
+                  .map(
+                    (category) =>
+                      `<option value="${esc(category.id)}" ${category.id === before.categoryId ? 'selected' : ''}>${esc(category.name)}</option>`
+                  )
+                  .join('')}
+              </select>
+            </label>
+            <div class="admin-modal__actions">
+              <button type="submit" class="admin-btn admin-btn-primary">カテゴリだけ保存</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="close-category-assign">閉じる</button>
+            </div>
+          </form>
+        `);
+        document.getElementById('close-category-assign').onclick = AdminUI.closeModal;
+        document.getElementById('category-assign-form').onsubmit = async (event) => {
+          event.preventDefault();
+          const form = event.target;
+          const submit = form.querySelector('[type="submit"]');
+          if (submit.disabled) return;
+          const categoryId = String(new FormData(form).get('categoryId') || '');
+          const category = cats.find((item) => item.id === categoryId);
+          if (!category) {
+            notify('カテゴリを選び直してください。自動では再送しません。', true);
+            return;
+          }
+          if (category.id === before.categoryId) {
+            notify('カテゴリは元のままです。保存していません。', false);
+            return;
+          }
+          submit.disabled = true;
+          try {
+            await HenreiyaCatalog.saveProduct(
+              HenreiyaCategoryAssign.categoryOnlyPayload(before, category)
+            );
+            const after = await HenreiyaCatalog.loadAdminProduct(before.id);
+            const check = HenreiyaCategoryAssign.assessCategorySave(before, after, category.id);
+            if (!check.ok) throw new Error(check.reason);
+            AdminUI.closeModal();
+            notify('カテゴリを保存しました。写真と他の項目は変えていません。', false);
+            render();
+          } catch (err) {
+            notify(err.message || 'カテゴリは保存されていません。自動では再送しません。', true);
+            submit.disabled = true;
+          }
+        };
+      }
+
       document.getElementById('btn-new').addEventListener('click', () => {
         if (mode === 'products') openProductEditor(null);
         else openCategoryEditor(null);
       });
 
       document.querySelector('#table-products tbody').addEventListener('click', (event) => {
+        const category = event.target.closest('[data-category-p]');
+        if (category) {
+          openCategoryAssign(category.getAttribute('data-category-p'));
+          return;
+        }
         const edit = event.target.closest('[data-edit-p]');
         if (edit) {
           openProductEditor(edit.getAttribute('data-edit-p'));
