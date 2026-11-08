@@ -1,0 +1,33 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /admin-site/
+Disallow: /api/
+Disallow: /data/
+Disallow: /lib/
+Disallow: /scripts/
+Disallow: /node_modules/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /admin-site/
+Disallow: /api/
+Disallow: /data/
+Disallow: /lib/
+Disallow: /scripts/
+Disallow: /node_modules/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin/
+Disallow: /admin-site/
+Disallow: /api/
+Disallow: /data/
+Disallow: /lib/
+Disallow: /scripts/
+Disallow: /node_modules/
+
+# カートと注文手続きは各HTMLの noindex で検索結果から外す。
+# 管理画面・API・内部データは巡回対象外。
+Sitemap: https://henreiya.vercel.app/sitemap.xml
