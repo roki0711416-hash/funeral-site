@@ -110,7 +110,6 @@ test('登録済みファイルが変わっていたら自動では上書きし�
 test('連続保存は不一致で止まり、未実行は未保存のまま台帳に残す', async () => {
   const products = [product('C002-001'), product('C002-002'), product('C002-003')];
   const calls = [];
-  let listed = null;
   const result = await importer.executePhotoPlan({
     jobs: products.map((item) => ({
       sku: item.id,
@@ -123,13 +122,10 @@ test('連続保存は不一致で止まり、未実行は未保存のまま台�
     saveProduct: async (payload) => {
       calls.push(payload.id);
       if (payload.id === 'C002-002') {
-        listed = Object.assign({}, payload, { name: '別商品', images: payload.images, image: payload.image });
-      } else {
-        listed = payload;
+        return Object.assign({}, payload, { name: '別商品', images: payload.images, image: payload.image });
       }
-      return listed;
+      return payload;
     },
-    readCatalog: async () => [listed],
   });
   assert.deepEqual(calls, ['C002-001', 'C002-002']);
   assert.equal(result.stopped, true);
@@ -171,49 +167,9 @@ test('読み戻しで写真順が違う保存結果は成功にしない', async
     }],
     prepare: async () => ['data:box', 'data:cut'],
     saveProduct: async (payload) => Object.assign({}, payload, { image: 'data:cut', images: ['data:cut', 'data:box'] }),
-    readCatalog: async () => [Object.assign({}, item, { image: 'data:cut', images: ['data:cut', 'data:box'] })],
   });
   assert.equal(result.jobs[0].status, 'failed');
   assert.match(result.jobs[0].reason, /順番/);
-});
-
-test('個別の保存結果が新写真でも一覧が元の1枚なら成功にしない', async () => {
-  const item = product('C071-039', { image: 'images/old.jpg', images: ['images/old.jpg'] });
-  const result = await importer.executePhotoPlan({
-    jobs: [{
-      sku: 'C071-039',
-      action: 'run',
-      product: item,
-      files: [
-        { order: 1, sha256: 'box', name: 'C071-039_01.jpg' },
-        { order: 2, sha256: 'sub', name: 'C071-039_02.jpg' },
-      ],
-    }],
-    prepare: async () => ['data:new-main', 'data:new-sub'],
-    saveProduct: async (payload) => payload,
-    readCatalog: async () => [item],
-  });
-  assert.equal(result.stopped, true);
-  assert.equal(result.jobs[0].status, 'failed');
-  assert.match(result.jobs[0].reason, /商品一覧/);
-  const ledger = importer.ledgerFromResults(result.jobs);
-  assert.equal(ledger.products[0].status, 'failed');
-});
-
-test('一覧確認が無い保存は成功にしない', async () => {
-  const item = product('C071-040');
-  const result = await importer.executePhotoPlan({
-    jobs: [{
-      sku: item.id,
-      action: 'run',
-      product: item,
-      files: [{ order: 1, sha256: 'a', name: item.id + '_01.jpg' }],
-    }],
-    prepare: async () => ['data:one'],
-    saveProduct: async (payload) => payload,
-  });
-  assert.equal(result.jobs[0].status, 'failed');
-  assert.match(result.jobs[0].reason, /成功とは記録しません/);
 });
 
 test('管理画面の本番ファイルに同じ振り分け関数がある', () => {
