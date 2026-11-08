@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>商品管理｜株式会社返礼屋管理</title>
+  <link rel="stylesheet" href="../css/admin.css?v=20261105k" />
+  <style>
+    .prod-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; }
+    .prod-tabs button.is-active { background:#1a2f4a; color:#fff; border-color:#1a2f4a; }
+    .prod-grid { display:none; }
+    .prod-grid.is-active { display:block; }
+    .prod-thumb { width:48px; height:48px; object-fit:contain; border-radius:6px; border:1px solid var(--admin-border); background:#f5f5f5; }
+    .form-grid { display:grid; gap:0.85rem; }
+    .form-grid label { display:flex; flex-direction:column; gap:0.35rem; font-size:12px; color:#5c5852; font-weight:600; }
+    .form-grid label[hidden] { display:none; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      padding:0.55rem 0.7rem; border:1px solid var(--admin-border); border-radius:6px; font:inherit; color:#2e2c29;
+    }
+    .form-grid textarea { min-height:88px; resize:vertical; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+    .img-preview { width:100%; max-width:220px; aspect-ratio:1; object-fit:contain; border-radius:8px; border:1px solid var(--admin-border); background:#f7f5f2; }
+    .img-presets { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.35rem; }
+    .img-presets button { padding:0; border:2px solid transparent; border-radius:6px; overflow:hidden; cursor:pointer; background:none; }
+    .img-presets button.is-on { border-color:#1a2f4a; }
+    .img-presets img { width:44px; height:44px; object-fit:cover; display:block; }
+    .check-row { display:flex; gap:1rem; align-items:center; font-size:13px; color:#2e2c29; }
+    .check-row label { flex-direction:row; align-items:center; gap:0.4rem; font-weight:500; }
+    .cat-group td { background:#f4f6f8; padding:0.7rem 0.85rem; }
+    .cat-group__bar { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; }
+    .cat-group__name { font-weight:700; color:#1a2f4a; }
+    .cat-group__count { margin-left:0.45rem; font-size:12px; font-weight:500; color:#6b6860; }
+    .product-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.75rem; margin:0 0 0.75rem; }
+    .product-toolbar label { display:flex; align-items:center; gap:0.45rem; font-size:13px; font-weight:700; color:#1a2f4a; }
+    .product-toolbar select { min-width:14rem; padding:0.45rem 0.6rem; border:1px solid var(--admin-border); border-radius:6px; font:inherit; }
+    .product-pager { display:flex; align-items:center; gap:0.45rem; }
+    .product-pager span { font-size:12px; color:#6b6860; }
+    .catalog-notice { margin:0 0 1rem; font-size:13px; }
+    .catalog-notice.is-error { color:#9b2c2c; font-weight:700; }
+    .catalog-notice.is-ok { color:#1a2f4a; }
+    tr.is-deleting td { opacity:0.45; }
+    .rate-help { font-size:13px; color:#5c5852; line-height:1.7; margin:0 0 1rem; }
+    .rate-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .rate-table th, .rate-table td { border-bottom:1px solid var(--admin-border); padding:0.4rem 0.35rem; text-align:left; }
+    .rate-table input[type="number"] { width:8rem; padding:0.35rem 0.45rem; }
+    .shipping-rates { max-height:60vh; overflow:auto; }
+    #shipping-panel .rate-help { margin:1rem 1.25rem; }
+    #shipping-panel .admin-modal__actions { padding:0 1.25rem 1rem; }
+    @media (max-width:700px){ .form-row-2{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body class="admin-body">
+  <div class="admin-shell" id="admin-shell">
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="menu-toggle-admin" id="admin-menu-toggle" aria-label="メニュー">☰</button>
+          <div>
+            <h1>商品管理</h1>
+            <p class="meta">カテゴリ・写真・価格・掲載のオンオフを設定できます</p>
+          </div>
+        </div>
+        <div class="admin-topbar__actions">
+          <button type="button" class="admin-btn admin-btn-ghost" id="btn-shipping">送料設定</button>
+          <button type="button" class="admin-btn admin-btn-primary" id="btn-new">新規追加</button>
+        </div>
+      </div>
+
+      <p id="catalog-notice" class="catalog-notice" hidden></p>
+      <div class="admin-panel" id="shipping-panel" hidden>
+        <div class="admin-panel__head"><h2>送料設定</h2></div>
+        <p class="rate-help">商品代が10,000円以上の注文は送料無料です。10,000円未満では、空欄の都道府県は未設定となり注文できません。配送不可にした都道府県は、金額にかかわらず注文できません。金額を入れると、10,000円未満の注文ではその金額が1便につき1回かかります。</p>
+        <form id="shipping-form">
+          <div class="admin-table-wrap shipping-rates">
+            <table class="rate-table" id="rate-table">
+              <thead>
+                <tr><th>都道府県</th><th>送料（円）</th><th>配送不可</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="admin-modal__actions">
+            <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+            <button type="button" class="admin-btn admin-btn-ghost" id="shipping-close">閉じる</button>
+          </div>
+        </form>
+      </div>
+      <div class="prod-tabs">
+        <button type="button" class="admin-btn admin-btn-ghost is-active" data-tab="products">商品</button>
+        <button type="button" class="admin-btn admin-btn-ghost" data-tab="categories">カテゴリ</button>
+      </div>
+
+      <div class="admin-panel prod-grid is-active" id="panel-products">
+        <div class="product-toolbar">
+          <label>カテゴリ
+            <select id="category-filter">
+              <option value="all">すべてのカテゴリ</option>
+            </select>
+          </label>
+          <div class="product-pager">
+            <button type="button" class="admin-btn admin-btn-ghost" id="product-prev">前へ</button>
+            <span id="product-page-label">読み込み中</span>
+            <button type="button" class="admin-btn admin-btn-ghost" id="product-next">次へ</button>
+          </div>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table-products">
+            <thead>
+              <tr>
+                <th>写真</th>
+                <th>商品名</th>
+                <th>価格</th>
+                <th>掲載</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-panel prod-grid" id="panel-categories">
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="table-categories">
+            <thead>
+              <tr>
+                <th>写真</th>
+                <th>カテゴリ名</th>
+                <th>表示順</th>
+                <th>価格帯</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/local-config.js"></script>
+  <script src="../js/admin-auth.js"></script>
+  <script src="../js/sheets-config.js"></script>
+  <script src="../js/admin-store.js?v=20261021b"></script>
+  <script src="../js/catalog-seed.js?v=20261005m"></script>
+  <script src="../js/catalog-store.js?v=20261104a"></script>
+  <script src="../js/shipping-calc.js?v=20261104e"></script>
+  <script src="../js/image-prepare.js?v=20261010c"></script>
+  <script src="../js/admin-ui.js?v=20261105k"></script>
+  <script>
+    (async function () {
+      if (!(await AdminUI.bootstrap('products', { skipStoreRefresh: true }))) throw new Error('auth');
+
+      let mode = 'products';
+      let editingId = null;
+      let productCategory = 'all';
+      let productPage = 1;
+      const PRODUCT_PAGE_SIZE = 40;
+
+      function notify(message, isError) {
+        const el = document.getElementById('catalog-notice');
+        el.hidden = !message;
+        el.textContent = message || '';
+        el.classList.toggle('is-error', !!isError);
+        el.classList.toggle('is-ok', !!message && !isError);
+      }
+
+      function imgSrc(src) {
+        const s = String(src || '');
+        if (!s) return '';
+        if (
+          s.startsWith('data:') ||
+          s.startsWith('http') ||
+          s.startsWith('../') ||
+          s.startsWith('/')
+        ) {
+          return esc(s);
+        }
+        return '../' + esc(s);
+      }
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function shipLabel(product) {
+        const supplier = HenreiyaCatalog.getSuppliers().find((row) => row.id === product.supplierId);
+        const temp = product.storage === 'frozen' ? '冷凍' : product.storage === 'chilled' ? '冷蔵' : '常温';
+        const origin = supplier ? supplier.name : '発送元未設定';
+        return origin + ' / ' + temp + (product.shippingIncluded ? ' / 送料込み' : '');
+      }
+
+      function switchTab(tab, categoryId) {
+        mode = tab;
+        if (tab === 'products' && categoryId) {
+          productCategory = categoryId;
+          productPage = 1;
+        }
+        document.querySelectorAll('.prod-tabs button').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.tab === tab);
+        });
+        document.getElementById('panel-products').classList.toggle('is-active', tab === 'products');
+        document.getElementById('panel-categories').classList.toggle('is-active', tab === 'categories');
+        document.getElementById('btn-new').textContent =
+          tab === 'products' ? '商品を追加' : 'カテゴリを追加';
+        render();
+      }
+
+      document.querySelectorAll('.prod-tabs button').forEach((b) => {
+        b.addEventListener('click', () => switchTab(b.dataset.tab));
+      });
+
+      function render() {
+        renderProducts();
+        renderCategories();
+      }
+
+      function listThumb(src) {
+        const value = String(src || '').trim();
+        if (!value) return '';
+        return imgSrc(value);
+      }
+
+      function rowPreviewSource(product) {
+        const main = String((product && product.image) || '').trim();
+        if (main) return main;
+        const extra = product && Array.isArray(product.images) ? product.images : [];
+        for (let i = 0; i < extra.length; i += 1) {
+          const value = String(extra[i] || '').trim();
+          if (value) return value;
+        }
+        return '';
+      }
+
+      function addPreparedImages(current, urls) {
+        const gallery = (Array.isArray(current) ? current : [])
+          .map((src) => String(src || '').trim())
+          .filter(Boolean);
+        const incoming = [];
+        (urls || []).forEach((src) => {
+          const value = String(src || '').trim();
+          if (!value || incoming.indexOf(value) !== -1 || gallery.indexOf(value) !== -1) return;
+          incoming.push(value);
+        });
+        if (!incoming.length) return { images: gallery.slice(0, 10), skipped: 0 };
+        const onlyInitial = !gallery.some((src) => !HenreiyaCatalog.isPlaceholderImage(src));
+        const next = onlyInitial ? incoming.concat(gallery) : gallery.concat(incoming);
+        const seen = [];
+        next.forEach((src) => {
+          if (seen.indexOf(src) === -1) seen.push(src);
+        });
+        return { images: seen.slice(0, 10), skipped: Math.max(0, seen.length - 10) };
+      }
+
+      function productRow(p) {
+        const thumb = listThumb(rowPreviewSource(p));
+        const count = Array.isArray(p.images) ? p.images.length : (p.image ? 1 : 0);
+        const countLabel = count > 1 ? `<br /><span style="font-size:11px;color:#6b6860;">画像 ${count}枚</span>` : '';
+        return `<tr>
+            <td>${thumb ? `<img class="prod-thumb" src="${thumb}" alt="" width="48" height="48" loading="lazy" decoding="async" />` : '<span style="font-size:11px;color:#6b6860;">写真未設定</span>'}</td>
+            <td>${esc(p.name)}<br /><span style="font-size:11px;color:#6b6860;">${esc(p.id)}</span><br /><span style="font-size:11px;color:#6b6860;">${esc(shipLabel(p))}</span>${countLabel}</td>
+            <td>${Number(p.price || 0).toLocaleString('ja-JP')}円</td>
+            <td>${p.published === false ? '<span class="badge badge-cancelled">非公開</span>' : '<span class="badge badge-completed">公開</span>'}${p.featured ? ' <span class="badge badge-confirmed">注目</span>' : ''}</td>
+            <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-edit-p="${esc(p.id)}">編集</button>
+              <button type="button" class="admin-btn admin-btn-danger" data-del-p="${esc(p.id)}">削除</button>
+            </td>
+          </tr>`;
+      }
+
+      function syncCategoryFilter() {
+        const select = document.getElementById('category-filter');
+        if (!select || !window.HenreiyaCatalog) return;
+        const cats = HenreiyaCatalog.getCategories(true);
+        const signature = cats.map((c) => c.id + '\n' + c.name).join('\n');
+        if (select.dataset.signature !== signature) {
+          select.dataset.signature = signature;
+          select.innerHTML =
+            '<option value="all">すべてのカテゴリ</option>' +
+            cats
+              .map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+              .join('');
+        }
+        if (select.value !== productCategory) select.value = productCategory;
+      }
+
+      function productGroups() {
+        const products = HenreiyaCatalog.getProducts(true);
+        const cats = HenreiyaCatalog.getCategories(true);
+        const groups = [];
+        cats.forEach((c) => {
+          if (productCategory !== 'all' && productCategory !== c.id) return;
+          groups.push({
+            id: c.id,
+            name: c.name,
+            items: products.filter((p) => p.categoryId === c.id),
+          });
+        });
+        if (productCategory === 'all') {
+          const known = new Set(cats.map((c) => c.id));
+          const orphans = products.filter((p) => !known.has(p.categoryId));
+          if (orphans.length) groups.push({ id: '', name: '未分類', items: orphans });
+        }
+        return groups;
+      }
+
+      function renderProducts() {
+        syncCategoryFilter();
+        const tbody = document.querySelector('#table-products tbody');
+        const label = document.getElementById('product-page-label');
+        const prev = document.getElementById('product-prev');
+        const next = document.getElementById('product-next');
+        const groups = productGroups();
+        const flat = [];
+        groups.forEach((group) => {
+          group.items.forEach((item) => flat.push({ group, item }));
+        });
+        const pages = Math.max(1, Math.ceil(flat.length / PRODUCT_PAGE_SIZE));
+        if (productPage > pages) productPage = pages;
+        if (productPage < 1) productPage = 1;
+        const start = (productPage - 1) * PRODUCT_PAGE_SIZE;
+        const slice = flat.slice(start, start + PRODUCT_PAGE_SIZE);
+        if (label) {
+          label.textContent = flat.length
+            ? start + 1 + '–' + (start + slice.length) + ' / ' + flat.length + '点'
+            : '0点';
+        }
+        if (prev) prev.disabled = productPage <= 1;
+        if (next) next.disabled = productPage >= pages;
+        if (!slice.length) {
+          const emptyGroup = groups.length === 1 ? groups[0] : null;
+          if (emptyGroup) {
+            tbody.innerHTML =
+              `<tr class="cat-group"><td colspan="5"><div class="cat-group__bar"><span><span class="cat-group__name">${esc(emptyGroup.name)}</span><span class="cat-group__count">0点</span></span></div></td></tr>` +
+              '<tr><td colspan="5" class="empty-state">このカテゴリの商品はまだありません</td></tr>';
+          } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">商品がありません</td></tr>';
+          }
+          return;
+        }
+        let html = '';
+        let current = null;
+        slice.forEach((row) => {
+          if (current !== row.group.id) {
+            current = row.group.id;
+            const addBtn = row.group.id
+              ? `<button type="button" class="admin-btn admin-btn-ghost" data-add-in="${esc(row.group.id)}">このカテゴリに追加</button>`
+              : '';
+            html += `<tr class="cat-group"><td colspan="5"><div class="cat-group__bar"><span><span class="cat-group__name">${esc(row.group.name)}</span><span class="cat-group__count">${row.group.items.length}点</span></span>${addBtn}</div></td></tr>`;
+          }
+          html += productRow(row.item);
+        });
+        tbody.innerHTML = html;
+      }
+
+      function askDeleteProduct(btn) {
+        const id = btn.getAttribute('data-del-p');
+        const cell = btn.closest('td');
+        const row = btn.closest('tr');
+        if (!id || !cell || cell.dataset.confirming === '1') return;
+        cell.dataset.confirming = '1';
+        if (row) row.classList.add('is-deleting');
+        cell.innerHTML =
+          '<button type="button" class="admin-btn admin-btn-danger">削除する</button>' +
+          '<button type="button" class="admin-btn admin-btn-ghost">やめる</button>';
+        const [yes, no] = cell.querySelectorAll('button');
+        no.addEventListener('click', () => render());
+        yes.addEventListener('click', async () => {
+          yes.disabled = true;
+          no.disabled = true;
+          yes.textContent = '削除中';
+          notify('削除しています…', false);
+          try {
+            await HenreiyaCatalog.deleteProduct(id);
+            notify('商品を削除しました。', false);
+            render();
+          } catch (err) {
+            notify(err.message || '削除に失敗しました。商品は残っています。', true);
+            render();
+          }
+        });
+      }
+
+      function renderCategories() {
+        const list = HenreiyaCatalog.getCategories(true);
+        const tbody = document.querySelector('#table-categories tbody');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">カテゴリがありません</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map(
+            (c) => `<tr>
+            <td><img class="prod-thumb" src="${imgSrc(c.image)}" alt="" loading="lazy" decoding="async" /></td>
+            <td>${esc(c.name)}<br /><span style="font-size:11px;color:#6b6860;">${esc(c.id)}</span></td>
+            <td>${c.sortOrder || '—'}</td>
+            <td>${Number(c.priceFrom || 0).toLocaleString('ja-JP')}円〜</td>
+            <td class="actions">
+              <button type="button" class="admin-btn admin-btn-ghost" data-open-c="${esc(c.id)}">商品</button>
+              <button type="button" class="admin-btn admin-btn-ghost" data-edit-c="${esc(c.id)}">編集</button>
+              <button type="button" class="admin-btn admin-btn-danger" data-del-c="${esc(c.id)}">削除</button>
+            </td>
+          </tr>`
+          )
+          .join('');
+        tbody.querySelectorAll('[data-open-c]').forEach((btn) => {
+          btn.addEventListener('click', () => switchTab('products', btn.dataset.openC));
+        });
+        tbody.querySelectorAll('[data-edit-c]').forEach((btn) => {
+          btn.addEventListener('click', () => openCategoryEditor(btn.dataset.editC));
+        });
+        tbody.querySelectorAll('[data-del-c]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('このカテゴリを削除しますか？')) return;
+            try {
+              await HenreiyaCatalog.deleteCategory(btn.dataset.delC);
+              render();
+            } catch (e) {
+              alert(e.message || String(e));
+            }
+          });
+        });
+      }
+
+      function imagePresetsHtml(selected) {
+        return HenreiyaCatalog.IMAGE_PRESETS.map(
+          (src) =>
+            `<button type="button" class="preset ${src === selected ? 'is-on' : ''}" data-src="${esc(src)}"><img src="../${esc(src)}" alt="" /></button>`
+        ).join('');
+      }
+
+      function productImagesOf(product) {
+        const list = [];
+        const push = (src) => {
+          const value = String(src || '').trim();
+          if (!value || list.indexOf(value) !== -1 || list.length >= 10) return;
+          list.push(value);
+        };
+        if (product) push(product.image);
+        if (product && Array.isArray(product.images)) product.images.forEach(push);
+        return list;
+      }
+
+      function bindImageFields(root, product) {
+        const urlInput = root.querySelector('[name="image"]');
+        const preview = root.querySelector('#img-preview');
+        const fileInput = root.querySelector('#img-file');
+        if (!root.querySelector('#image-gallery')) {
+          const setPreview = (src) => {
+            if (!preview) return;
+            if (!src) {
+              preview.hidden = true;
+              preview.removeAttribute('src');
+              return;
+            }
+            preview.hidden = false;
+            preview.src = src.startsWith('data:') || src.startsWith('http') ? src : '../' + src;
+          };
+          setPreview(urlInput && urlInput.value);
+          root.querySelectorAll('.preset').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              urlInput.value = btn.dataset.src;
+              root.querySelectorAll('.preset').forEach((b) => b.classList.remove('is-on'));
+              btn.classList.add('is-on');
+              setPreview(btn.dataset.src);
+            });
+          });
+          urlInput?.addEventListener('input', () => setPreview(urlInput.value));
+          fileInput?.addEventListener('change', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            fileInput.disabled = true;
+            try {
+              const result = await HenreiyaImage.prepare(file);
+              urlInput.value = result.display;
+              setPreview(result.display);
+            } catch (err) {
+              console.warn(err);
+              alert((err && err.message) || '画像を読み込めませんでした。別のファイルを選んでください。');
+            } finally {
+              fileInput.disabled = false;
+            }
+          });
+          return { images() { return []; } };
+        }
+        const gallery = productImagesOf(product);
+        const listEl = root.querySelector('#image-gallery');
+        const countEl = root.querySelector('#image-count');
+        let syncing = false;
+        const adminSrc = (src) => {
+          if (!src) return '';
+          if (src.startsWith('data:') || src.startsWith('http') || src.startsWith('../') || src.startsWith('/')) return src;
+          return '../' + src;
+        };
+        const setPreview = (src) => {
+          if (!src) {
+            preview.hidden = true;
+            preview.removeAttribute('src');
+            return;
+          }
+          preview.hidden = false;
+          preview.src = adminSrc(src);
+        };
+        function paint() {
+          syncing = true;
+          urlInput.value = gallery[0] || '';
+          syncing = false;
+          setPreview(gallery[0] || '');
+          if (countEl) countEl.textContent = '登録画像 ' + gallery.length + ' / 10';
+          if (!gallery.length) {
+            listEl.innerHTML = '<li class="image-gallery__empty">画像はまだありません</li>';
+          } else {
+            listEl.innerHTML = gallery
+              .map((src, i) => {
+                return `<li class="image-gallery__item${i === 0 ? ' is-main' : ''}">
+                  <img src="${esc(adminSrc(src))}" alt="" />
+                  <div class="image-gallery__meta">
+                    <strong>${i === 0 ? 'メイン画像' : 'サブ画像 ' + i}</strong>
+                    <div class="image-gallery__actions">
+                      <button type="button" data-act="main" data-i="${i}" ${i === 0 ? 'disabled' : ''}>メインにする</button>
+                      <button type="button" data-act="up" data-i="${i}" ${i === 0 ? 'disabled' : ''}>前へ</button>
+                      <button type="button" data-act="down" data-i="${i}" ${i === gallery.length - 1 ? 'disabled' : ''}>次へ</button>
+                      <button type="button" data-act="del" data-i="${i}">削除</button>
+                    </div>
+                  </div>
+                </li>`;
+              })
+              .join('');
+          }
+          root.querySelectorAll('.preset').forEach((btn) => {
+            btn.classList.toggle('is-on', btn.dataset.src === gallery[0]);
+          });
+        }
+        listEl.addEventListener('click', (event) => {
+          const btn = event.target.closest('[data-act]');
+          if (!btn || btn.disabled) return;
+          const index = Number(btn.dataset.i);
+          const act = btn.dataset.act;
+          if (act === 'del') gallery.splice(index, 1);
+          else if (act === 'up' && index > 0) {
+            const prev = gallery[index - 1];
+            gallery[index - 1] = gallery[index];
+            gallery[index] = prev;
+          } else if (act === 'down' && index < gallery.length - 1) {
+            const next = gallery[index + 1];
+            gallery[index + 1] = gallery[index];
+            gallery[index] = next;
+          } else if (act === 'main' && index > 0) {
+            const picked = gallery.splice(index, 1)[0];
+            gallery.unshift(picked);
+          }
+          paint();
+        });
+        root.querySelectorAll('.preset').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const src = btn.dataset.src;
+            if (!src) return;
+            const index = gallery.indexOf(src);
+            if (index >= 0) gallery.splice(index, 1);
+            gallery.unshift(src);
+            if (gallery.length > 10) gallery.length = 10;
+            paint();
+          });
+        });
+        urlInput.addEventListener('input', () => {
+          if (syncing) return;
+          const value = urlInput.value.trim();
+          if (!value) {
+            if (gallery.length) gallery.shift();
+          } else if (gallery.length) {
+            const dup = gallery.indexOf(value);
+            if (dup > 0) gallery.splice(dup, 1);
+            gallery[0] = value;
+          } else {
+            gallery.push(value);
+          }
+          paint();
+        });
+        fileInput?.addEventListener('change', async () => {
+          const files = Array.from(fileInput.files || []);
+          if (!files.length) return;
+          fileInput.disabled = true;
+          const prepared = [];
+          try {
+            for (let i = 0; i < files.length; i++) {
+              try {
+                const result = await HenreiyaImage.prepare(files[i]);
+                prepared.push(result.display);
+              } catch (err) {
+                console.warn(err);
+                alert((err && err.message) || '画像を読み込めませんでした。別のファイルを選んでください。');
+              }
+            }
+            const added = addPreparedImages(gallery, prepared);
+            gallery.splice(0, gallery.length, ...added.images);
+            if (added.skipped) alert('画像は10枚までです。超えた分は追加していません。');
+            paint();
+          } finally {
+            fileInput.disabled = false;
+            fileInput.value = '';
+          }
+        });
+        paint();
+        return {
+          images() {
+            return gallery.slice();
+          },
+        };
+      }
+
+      function fitShopImage(file) {
+        const limit = 42000;
+        const frame = 800;
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          const reader = new FileReader();
+          const originalReady = new Promise((done) => {
+            reader.onload = () => done(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = () => done('');
+          });
+          reader.readAsDataURL(file);
+          img.onload = async () => {
+            URL.revokeObjectURL(url);
+            const original = await originalReady;
+            const scale = Math.min(1, frame / img.width, frame / img.height);
+            const dw = Math.max(1, Math.round(img.width * scale));
+            const dh = Math.max(1, Math.round(img.height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = frame;
+            canvas.height = frame;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, frame, frame);
+            ctx.drawImage(img, Math.round((frame - dw) / 2), Math.round((frame - dh) / 2), dw, dh);
+            const qualities = [0.86, 0.74, 0.62, 0.5, 0.4];
+            let last = '';
+            for (let i = 0; i < qualities.length; i++) {
+              last = canvas.toDataURL('image/jpeg', qualities[i]);
+              if (last.length <= limit) break;
+            }
+            resolve({
+              display: last,
+              original: original.length > 0 && original.length <= 12000 ? original : '',
+            });
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('image'));
+          };
+          img.src = url;
+        });
+      }
+
+      function compressImage(file) {
+        const limit = 42000;
+        const steps = [
+          [800, 0.72],
+          [640, 0.62],
+          [480, 0.52],
+        ];
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            let last = '';
+            for (let i = 0; i < steps.length; i++) {
+              const maxW = steps[i][0];
+              const quality = steps[i][1];
+              const ratio = Math.min(1, maxW / img.width, maxW / img.height);
+              const w = Math.max(1, Math.round(img.width * ratio));
+              const h = Math.max(1, Math.round(img.height * ratio));
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              last = canvas.toDataURL('image/jpeg', quality);
+              if (last.length <= limit) {
+                resolve(last);
+                return;
+              }
+            }
+            resolve(last);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('image'));
+          };
+          img.src = url;
+        });
+      }
+
+      async function openProductEditor(id, categoryId) {
+        let p = null;
+        if (id) {
+          try {
+            p = await HenreiyaCatalog.loadAdminProduct(id);
+          } catch (err) {
+            notify(err.message || '商品を読み込めませんでした。', true);
+            return;
+          }
+          if (!p) {
+            notify('商品が見つかりません。', true);
+            return;
+          }
+        }
+        editingId = p ? p.id : null;
+        const cats = HenreiyaCatalog.getCategories(true);
+        const selectedCategory =
+          (p && p.categoryId) ||
+          categoryId ||
+          (productCategory !== 'all' ? productCategory : cats[0] && cats[0].id) ||
+          '';
+        AdminUI.openModal(`
+          <h3>${p ? '商品を編集' : '商品を追加'}</h3>
+          <form class="form-grid" id="prod-form">
+            <div class="form-row-2">
+              <label>申込番号<input name="applicationNo" value="${esc(p?.applicationNo || '')}" placeholder="例：C014-014" /></label>
+              <label>商品名<input name="name" required value="${esc(p?.name || '')}" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>メーカー品番<input name="makerNo" value="${esc(p?.makerNo || '')}" /></label>
+              <label>ブランド<input name="brand" value="${esc(p?.brand || '')}" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>色柄<input name="color" value="${esc(p?.color || '')}" /></label>
+              <label>梱包入数<input name="packCount" value="${esc(p?.packCount || '')}" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>JANコード<input name="jan" value="${esc(p?.jan || '')}" /></label>
+              <label>生産国<input name="origin" value="${esc(p?.origin || '')}" /></label>
+            </div>
+            <label>材質<input name="material" value="${esc(p?.material || '')}" /></label>
+            <div class="form-row-2">
+              <label>税抜価格（円）<input name="priceExTax" type="number" min="0" step="1" value="${esc(p?.priceExTax ?? '')}" placeholder="例：1600" /></label>
+              <label>税込価格（円）<input name="price" type="number" min="0" step="1" required value="${esc(p?.price ?? '')}" placeholder="例：1628" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>賞味期間（製造日から）<input name="shelfLife" value="${esc(p?.shelfLife || '')}" placeholder="例：常温 120日間" /></label>
+              <label>商品重量<input name="quantityText" value="${esc(p?.quantityText || '')}" placeholder="例：365g" /></label>
+            </div>
+            <label>商品サイズ<input name="productSize" value="${esc(p?.productSize || '')}" placeholder="例：フェイスタオル340mm×800mm" /></label>
+            <label>商品内容<textarea name="contents" placeholder="例：北海道産小豆もなか×8">${esc(p?.contents || '')}</textarea></label>
+            <div class="form-row-2">
+              <label>箱サイズ<input name="boxSize" value="${esc(p?.boxSize || '')}" placeholder="例：W203×H55×45mm" /></label>
+              <label>三辺サイズ<input name="threeSize" value="${esc(p?.threeSize || '')}" placeholder="例：86" /></label>
+            </div>
+            <div class="form-row-2">
+              <label>宅配サイズ<input name="deliverySize" value="${esc(p?.deliverySize || '')}" placeholder="例：45" /></label>
+              <label>のしサイズ<input name="noshiSize" value="${esc(p?.noshiSize || '')}" placeholder="例：小" /></label>
+            </div>
+            <label>カテゴリ
+              <select name="categoryId" id="category-select" required>
+                ${p && !p.categoryId ? '<option value="" selected>カテゴリ未設定</option>' : ''}
+                ${cats
+                  .map(
+                    (c) =>
+                      `<option value="${esc(c.id)}" ${c.id === selectedCategory ? 'selected' : ''}>${esc(c.name)}</option>`
+                  )
+                  .join('')}
+                <option value="__new__">＋ 新しいカテゴリを入力</option>
+              </select>
+            </label>
+            <label id="new-category-field" hidden>新しいカテゴリ名
+              <input name="categoryName" id="category-name" placeholder="カテゴリ名を入力" autocomplete="off" />
+            </label>
+            <div class="form-row-2">
+              <label>発送元
+                <select name="supplierId">
+                  <option value="">未設定</option>
+                  ${HenreiyaCatalog.getSuppliers()
+                    .map(
+                      (supplier) =>
+                        `<option value="${esc(supplier.id)}" ${p && p.supplierId === supplier.id ? 'selected' : ''}>${esc(supplier.name)}</option>`
+                    )
+                    .join('')}
+                </select>
+              </label>
+              <label>温度帯
+                <select name="storage">
+                  <option value="ambient" ${!p || p.storage === 'ambient' || !p.storage ? 'selected' : ''}>常温</option>
+                  <option value="chilled" ${p && p.storage === 'chilled' ? 'selected' : ''}>冷蔵</option>
+                  <option value="frozen" ${p && p.storage === 'frozen' ? 'selected' : ''}>冷凍</option>
+                </select>
+              </label>
+            </div>
+            <label>同梱条件
+              <input name="bundleKey" value="${esc(p?.bundleKey || '')}" placeholder="空欄同士は、同じ発送元・同じ温度帯で同梱します" />
+            </label>
+            <div class="check-row">
+              <label><input type="checkbox" name="shippingIncluded" ${p?.shippingIncluded ? 'checked' : ''} /> 送料込み（同じ便に通常商品があると、その便の送料は通常どおりかかります）</label>
+            </div>
+            <label>説明（表のコピー）<textarea name="desc" placeholder="表の「コピー」はこちらに記入します">${esc(p?.desc || '')}</textarea></label>
+            <label>備考<textarea name="note" placeholder="表の「備考」はこちらに記入します">${esc(p?.note || '')}</textarea></label>
+            <label>表示順<input name="sortOrder" type="number" value="${esc(p?.sortOrder ?? '')}" /></label>
+            <label>メイン画像のパスまたはURL
+              <input name="image" value="${esc(p?.image || '')}" placeholder="未設定のまま保存できます" />
+            </label>
+              <p style="font-size:11px;color:#6b6860;margin:0;">メイン画像1枚とサブ画像を合わせて最大10枚です。写真がない商品は公開ショップに出ません。アップロードした画像は、商品全体が収まるように余白を足してショップ用に整えます。</p>
+              <div>
+              <img id="img-preview" class="img-preview" alt="メイン画像のプレビュー" ${p?.image ? '' : 'hidden'} />
+              <p id="image-count" class="image-gallery__count"></p>
+              <ul id="image-gallery" class="image-gallery"></ul>
+              <div class="img-presets">${imagePresetsHtml(p?.image || '')}</div>
+              <input type="hidden" name="imageOriginal" value="" />
+              <label style="margin-top:0.6rem;">画像ファイルを追加（複数選択できます）
+                <input type="file" id="img-file" multiple accept="image/jpeg,image/png,image/webp,image/*" />
+              </label>
+              <p style="font-size:11px;color:#6b6860;margin-top:0.35rem;">サイズや縦横比が違っていても、そのままで登録できます。複数ファイルの並びはクリックした順ではなくファイル名順になることがあります。保存前に「メインにする」「前へ」「次へ」で順番を確定してください。先頭がメイン画像です。</p>
+            </div>
+            <div class="check-row">
+              <label><input type="checkbox" name="reducedTax" ${p?.reducedTax ? 'checked' : ''} /> 軽減税率対象</label>
+              <label><input type="checkbox" name="published" ${p && p.published !== false ? 'checked' : ''} /> 公開する</label>
+              <label><input type="checkbox" name="featured" ${p?.featured ? 'checked' : ''} /> ランキング注目</label>
+            </div>
+            <div class="admin-modal__actions">
+              <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="close-modal">閉じる</button>
+            </div>
+          </form>
+        `);
+        const modal = document.getElementById('admin-modal');
+        const imageFields = bindImageFields(modal, p);
+        const categorySelect = document.getElementById('category-select');
+        const newCategoryField = document.getElementById('new-category-field');
+        const categoryNameInput = document.getElementById('category-name');
+        function syncCategoryField() {
+          const isNew = categorySelect.value === '__new__';
+          newCategoryField.hidden = !isNew;
+          categoryNameInput.required = isNew;
+          if (!isNew) categoryNameInput.value = '';
+        }
+        categorySelect.addEventListener('change', syncCategoryField);
+        document.getElementById('close-modal').onclick = AdminUI.closeModal;
+        document.getElementById('prod-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const submit = form.querySelector('[type="submit"]');
+          const fd = new FormData(form);
+          submit.disabled = true;
+          try {
+            let categoryId = fd.get('categoryId');
+            if (categoryId === '__new__') {
+              const categoryName = String(fd.get('categoryName') || '').trim();
+              if (!categoryName) throw new Error('新しいカテゴリ名を入力してください。');
+              const catsNow = HenreiyaCatalog.getCategories(true);
+              let category = catsNow.find((c) => String(c.name || '').trim() === categoryName);
+              if (!category) {
+                category = await HenreiyaCatalog.saveCategory({
+                  name: categoryName,
+                  image: fd.get('image') || 'images/cat-western.jpg',
+                  priceFrom: fd.get('price') || 0,
+                });
+              }
+              categoryId = category.id;
+            }
+            const images = imageFields.images();
+            const image = images[0] || '';
+            const wantPublished = !!fd.get('published');
+            const saved = await HenreiyaCatalog.saveProduct({
+              id: editingId || undefined,
+              name: fd.get('name'),
+              applicationNo: fd.get('applicationNo'),
+              makerNo: fd.get('makerNo'),
+              brand: fd.get('brand'),
+              color: fd.get('color'),
+              packCount: fd.get('packCount'),
+              jan: fd.get('jan'),
+              material: fd.get('material'),
+              origin: fd.get('origin'),
+              reducedTax: !!fd.get('reducedTax'),
+              price: fd.get('price'),
+              priceExTax: fd.get('priceExTax'),
+              shelfLife: fd.get('shelfLife'),
+              productSize: fd.get('productSize'),
+              contents: fd.get('contents'),
+              boxSize: fd.get('boxSize'),
+              quantityText: fd.get('quantityText'),
+              threeSize: fd.get('threeSize'),
+              deliverySize: fd.get('deliverySize'),
+              noshiSize: fd.get('noshiSize'),
+              supplierId: fd.get('supplierId'),
+              imageOriginal: String(fd.get('imageOriginal') || '').trim() || undefined,
+              storage: fd.get('storage'),
+              bundleKey: fd.get('bundleKey'),
+              shippingIncluded: !!fd.get('shippingIncluded'),
+              categoryId,
+              desc: fd.get('desc'),
+              note: fd.get('note'),
+              sortOrder: fd.get('sortOrder') || undefined,
+              image,
+              images,
+              published: wantPublished && !!image,
+              featured: !!fd.get('featured'),
+            });
+            AdminUI.closeModal();
+            notify(
+              saved && saved.galleryOnly
+                ? '画像の追加・削除・並び順を保存しました。商品名や価格、カテゴリは既存データを守るため変更していません。'
+                : wantPublished && !image
+                  ? '保存しました。写真がないため、公開ショップには出ていません。'
+                  : '保存しました。公開中の商品は返礼品ショップに表示されます。',
+              false
+            );
+            render();
+          } catch (err) {
+            notify(err.message || '保存に失敗しました。', true);
+            submit.disabled = false;
+          }
+        };
+      }
+
+      function openCategoryEditor(id) {
+        const c = id ? HenreiyaCatalog.getCategory(id) : null;
+        editingId = c ? c.id : null;
+        AdminUI.openModal(`
+          <h3>${c ? 'カテゴリを編集' : 'カテゴリを追加'}</h3>
+          <form class="form-grid" id="cat-form">
+            <label>カテゴリ名<input name="name" required value="${esc(c?.name || '')}" /></label>
+            ${
+              c
+                ? `<label>ID（変更不可）<input name="id" value="${esc(c.id)}" readonly /></label>`
+                : `<label>ID（半角英数・任意）<input name="id" placeholder="例：western" pattern="[a-zA-Z0-9_-]+" /></label>`
+            }
+            <label>表示順<input name="sortOrder" type="number" value="${esc(c?.sortOrder ?? '')}" /></label>
+            <label>価格帯の表示（円〜）<input name="priceFrom" type="number" value="${esc(c?.priceFrom ?? '')}" /></label>
+            <label>画像パスまたはURL
+              <input name="image" required value="${esc(c?.image || 'images/cat-western.jpg')}" />
+            </label>
+            <div>
+              <img id="img-preview" class="img-preview" alt="プレビュー" />
+              <div class="img-presets">${imagePresetsHtml(c?.image || 'images/cat-western.jpg')}</div>
+              <label style="margin-top:0.6rem;">画像ファイルから設定（任意）
+                <input type="file" id="img-file" accept="image/*" />
+              </label>
+            </div>
+            <div class="admin-modal__actions">
+              <button type="submit" class="admin-btn admin-btn-primary">保存</button>
+              <button type="button" class="admin-btn admin-btn-ghost" id="close-modal">閉じる</button>
+            </div>
+          </form>
+        `);
+        const modal = document.getElementById('admin-modal');
+        bindImageFields(modal);
+        document.getElementById('close-modal').onclick = AdminUI.closeModal;
+        document.getElementById('cat-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const submit = form.querySelector('[type="submit"]');
+          const fd = new FormData(form);
+          submit.disabled = true;
+          try {
+            await HenreiyaCatalog.saveCategory({
+              id: fd.get('id') || editingId || undefined,
+              name: fd.get('name'),
+              sortOrder: fd.get('sortOrder') || undefined,
+              priceFrom: fd.get('priceFrom') || 0,
+              image: fd.get('image'),
+            });
+            AdminUI.closeModal();
+            notify('保存しました。', false);
+            render();
+          } catch (err) {
+            notify(err.message || '保存に失敗しました。', true);
+            submit.disabled = false;
+          }
+        };
+      }
+
+      let shippingSupplierId = null;
+
+      function shippingSupplier() {
+        const suppliers = HenreiyaCatalog.getSuppliers();
+        let chosen = null;
+        let count = -1;
+        suppliers.forEach((supplier) => {
+          const rates = supplier.rates || {};
+          const set = HenreiyaShipping.PREFECTURES.filter((pref) => rates[pref] != null && rates[pref] !== '').length;
+          if (set > count) {
+            chosen = supplier;
+            count = set;
+          }
+        });
+        if (!chosen) {
+          return {
+            id: 'henreiya',
+            name: '株式会社返礼屋',
+            leadTime: 'ご入金確認後 3〜5営業日',
+            note: '税込の地域別送料です。管理画面から変更できます。',
+            undeliverable: [],
+            rates: HenreiyaShipping.defaultRates(),
+          };
+        }
+        const rates = { ...HenreiyaShipping.defaultRates(), ...(chosen.rates || {}) };
+        HenreiyaShipping.PREFECTURES.forEach((pref) => {
+          if (rates[pref] == null || rates[pref] === '') rates[pref] = HenreiyaShipping.regionalFee(pref);
+        });
+        return { ...chosen, rates };
+      }
+
+      function fillShippingForm(supplier) {
+        shippingSupplierId = supplier.id;
+        const body = document.querySelector('#rate-table tbody');
+        body.innerHTML = HenreiyaShipping.PREFECTURES.map((pref) => {
+          const blocked = (supplier.undeliverable || []).indexOf(pref) >= 0;
+          const rate = supplier.rates ? supplier.rates[pref] : null;
+          const value = rate == null || rate === '' ? '' : String(rate);
+          return `<tr>
+            <td>${esc(pref)}</td>
+            <td><input type="number" min="0" step="1" data-pref="${esc(pref)}" value="${esc(value)}" placeholder="未設定" ${blocked ? 'disabled' : ''} /></td>
+            <td><label><input type="checkbox" data-block="${esc(pref)}" ${blocked ? 'checked' : ''} /> 不可</label></td>
+          </tr>`;
+        }).join('');
+        body.querySelectorAll('[data-block]').forEach((box) => {
+          box.addEventListener('change', () => {
+            const input = body.querySelector(`[data-pref="${box.dataset.block}"]`);
+            input.disabled = box.checked;
+            if (box.checked) input.value = '';
+          });
+        });
+      }
+
+      async function openShipping() {
+        if (!HenreiyaCatalog.isFresh()) {
+          let result = await HenreiyaCatalog.refresh();
+          if (!HenreiyaCatalog.isFresh() && result && result.superseded) {
+            result = await HenreiyaCatalog.refresh();
+          }
+          if (!HenreiyaCatalog.isFresh()) {
+            throw new Error((result && result.error) || '送料を読み込めませんでした。');
+          }
+        }
+        const supplier = shippingSupplier();
+        fillShippingForm(supplier);
+        const panel = document.getElementById('shipping-panel');
+        panel.hidden = false;
+        panel.scrollIntoView({ block: 'nearest' });
+      }
+
+      document.getElementById('btn-shipping').addEventListener('click', () => {
+        openShipping().catch((err) => notify(err.message || '送料を読み込めませんでした。', true));
+      });
+      document.getElementById('shipping-close').addEventListener('click', () => {
+        document.getElementById('shipping-panel').hidden = true;
+      });
+      document.getElementById('shipping-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const submit = form.querySelector('[type="submit"]');
+        const supplier = HenreiyaCatalog.getSuppliers().find((row) => row.id === shippingSupplierId) || {
+          id: shippingSupplierId || 'henreiya',
+          name: '株式会社返礼屋',
+          leadTime: 'ご入金確認後 3〜5営業日',
+          note: '税込の地域別送料です。管理画面から変更できます。',
+        };
+        const rates = {};
+        const undeliverable = [];
+        HenreiyaShipping.PREFECTURES.forEach((pref) => {
+          const blocked = form.querySelector(`[data-block="${pref}"]`).checked;
+          if (blocked) {
+            undeliverable.push(pref);
+            rates[pref] = null;
+            return;
+          }
+          rates[pref] = form.querySelector(`[data-pref="${pref}"]`).value;
+        });
+        submit.disabled = true;
+        try {
+          await HenreiyaCatalog.saveSupplier({
+            id: supplier.id,
+            name: supplier.name,
+            leadTime: supplier.leadTime || '',
+            note: supplier.note || '',
+            rates,
+            undeliverable,
+          });
+          notify('保存しました。返礼品ショップの注文に反映されます。', false);
+        } catch (err) {
+          notify(err.message || '保存に失敗しました。', true);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      document.getElementById('category-filter').addEventListener('change', (event) => {
+        productCategory = event.target.value || 'all';
+        productPage = 1;
+        renderProducts();
+      });
+      document.getElementById('product-prev').addEventListener('click', () => {
+        if (productPage <= 1) return;
+        productPage -= 1;
+        renderProducts();
+      });
+      document.getElementById('product-next').addEventListener('click', () => {
+        productPage += 1;
+        renderProducts();
+      });
+
+      document.getElementById('btn-new').addEventListener('click', () => {
+        if (mode === 'products') openProductEditor(null);
+        else openCategoryEditor(null);
+      });
+
+      document.querySelector('#table-products tbody').addEventListener('click', (event) => {
+        const edit = event.target.closest('[data-edit-p]');
+        if (edit) {
+          openProductEditor(edit.getAttribute('data-edit-p'));
+          return;
+        }
+        const add = event.target.closest('[data-add-in]');
+        if (add) {
+          openProductEditor(null, add.getAttribute('data-add-in'));
+          return;
+        }
+        const del = event.target.closest('[data-del-p]');
+        if (del) askDeleteProduct(del);
+      });
+
+      const hadCache = typeof HenreiyaCatalog.primeAdminCache === 'function' && HenreiyaCatalog.primeAdminCache();
+      if (hadCache) {
+        switchTab('products');
+      } else {
+        mode = 'products';
+        document.getElementById('btn-new').textContent = '商品を追加';
+        const tbody = document.querySelector('#table-products tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">読み込み中</td></tr>';
+      }
+      HenreiyaCatalog.refresh()
+        .then((result) => {
+          if (result && result.superseded) return;
+          if (result && result.ok === false) {
+            if (!hadCache) notify(result.error || '商品一覧を読み込めませんでした。', true);
+            return;
+          }
+          if (result && result.unchanged && hadCache) return;
+          render();
+        })
+        .catch((err) => notify(err.message || '商品一覧を読み込めませんでした。', true));
+    })();
+  </script>
+</body>
+</html>
