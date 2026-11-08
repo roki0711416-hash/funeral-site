@@ -203,6 +203,7 @@
   async function executePhotoPlan(options) {
     const jobs = (options.jobs || []).slice();
     const saveProduct = options.saveProduct;
+    const readCatalog = options.readCatalog;
     const prepare = options.prepare || (async (job) => job.images || []);
     const out = [];
     let stopped = false;
@@ -223,11 +224,21 @@
         if (!images || images.length !== job.files.length || !images.length) {
           throw new Error('写真を整えられませんでした。');
         }
-        const saved = await saveProduct(photoOnlyPayload(job.product, images));
-        if (!galleryOk(images, saved)) {
-          throw new Error('写真の順番は保存されていません。再読み込みしても、選んだメイン画像のままではありません。');
+        await saveProduct(photoOnlyPayload(job.product, images));
+        if (typeof readCatalog !== 'function') {
+          throw new Error('保存後の商品一覧を確認できないため、成功とは記録しません。');
         }
-        const fields = nonPhotoIntact(job.product, saved);
+        const listed = await readCatalog();
+        const fresh = (Array.isArray(listed) ? listed : []).find((product) => {
+          return product && String(product.id) === String(job.product.id);
+        });
+        if (!fresh) {
+          throw new Error('保存後の商品一覧にこの商品がありません。成功とは記録しません。');
+        }
+        if (!galleryOk(images, fresh)) {
+          throw new Error('商品一覧を読み直しても、選んだ写真の枚数と順番になっていません。成功とは記録しません。');
+        }
+        const fields = nonPhotoIntact(job.product, fresh);
         if (!fields.ok) throw new Error(fields.reason);
         out.push(Object.assign({}, job, { action: 'saved', status: 'saved', reason: '' }));
       } catch (err) {
