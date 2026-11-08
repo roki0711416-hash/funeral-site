@@ -10,6 +10,8 @@
 
 配布用の3ファイルは `/opt/cursor/artifacts/henreiya-production-photo-fix.zip` です。古い2ファイル版のパッチだけを当てると、写真順の保存は直りません。
 
+一括写真登録は、すでに本番へ載っている商品管理ページだけを差し替えます。成果物は `/opt/cursor/artifacts/henreiya-admin-photo-import.zip` です。`catalog-store.js` と `product-seo.js` は含めません。
+
 Windows 側スナップショットの `api/catalog.js` は本番マニフェストに無く、`galleryOnly` も `?id=` の `product` もありません。本番 API の置き換えに使わないでください。
 
 ## この差分が変えること
