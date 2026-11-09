@@ -1,0 +1,207 @@
+# Superseded as a standalone apply script. Use patches/production files or /opt/cursor/artifacts/henreiya-production-photo-fix.zip
+--- src/admin/products.html
++++ src/admin/products.html
+@@ -222,12 +222,43 @@
+ 
+       function listThumb(src) {
+         const value = String(src || '').trim();
+-        if (!value || (value.startsWith('data:') && value.length > 2048)) return '';
++        if (!value) return '';
+         return imgSrc(value);
+       }
+ 
++      function rowPreviewSource(product) {
++        const main = String((product && product.image) || '').trim();
++        if (main) return main;
++        const extra = product && Array.isArray(product.images) ? product.images : [];
++        for (let i = 0; i < extra.length; i += 1) {
++          const value = String(extra[i] || '').trim();
++          if (value) return value;
++        }
++        return '';
++      }
++
++      function addPreparedImages(current, urls) {
++        const gallery = (Array.isArray(current) ? current : [])
++          .map((src) => String(src || '').trim())
++          .filter(Boolean);
++        const incoming = [];
++        (urls || []).forEach((src) => {
++          const value = String(src || '').trim();
++          if (!value || incoming.indexOf(value) !== -1 || gallery.indexOf(value) !== -1) return;
++          incoming.push(value);
++        });
++        if (!incoming.length) return { images: gallery.slice(0, 10), skipped: 0 };
++        const onlyInitial = !gallery.some((src) => !HenreiyaCatalog.isPlaceholderImage(src));
++        const next = onlyInitial ? incoming.concat(gallery) : gallery.concat(incoming);
++        const seen = [];
++        next.forEach((src) => {
++          if (seen.indexOf(src) === -1) seen.push(src);
++        });
++        return { images: seen.slice(0, 10), skipped: Math.max(0, seen.length - 10) };
++      }
++
+       function productRow(p) {
+-        const thumb = listThumb(p.image);
++        const thumb = listThumb(rowPreviewSource(p));
+         const count = Array.isArray(p.images) ? p.images.length : (p.image ? 1 : 0);
+         const countLabel = count > 1 ? `<br /><span style="font-size:11px;color:#6b6860;">画像 ${count}枚</span>` : '';
+         return `<tr>
+@@ -554,26 +585,20 @@
+           const files = Array.from(fileInput.files || []);
+           if (!files.length) return;
+           fileInput.disabled = true;
+-          let skipped = 0;
++          const prepared = [];
+           try {
+             for (let i = 0; i < files.length; i++) {
+-              if (gallery.length >= 10) {
+-                skipped += 1;
+-                continue;
+-              }
+               try {
+                 const result = await HenreiyaImage.prepare(files[i]);
+-                if (gallery.indexOf(result.display) !== -1) continue;
+-                const onlyInitial = !gallery.some((src) => !HenreiyaCatalog.isPlaceholderImage(src));
+-                if (onlyInitial) gallery.unshift(result.display);
+-                else gallery.push(result.display);
+-                if (gallery.length > 10) gallery.length = 10;
++                prepared.push(result.display);
+               } catch (err) {
+                 console.warn(err);
+                 alert((err && err.message) || '画像を読み込めませんでした。別のファイルを選んでください。');
+               }
+             }
+-            if (skipped) alert('画像は10枚までです。超えた分は追加していません。');
++            const added = addPreparedImages(gallery, prepared);
++            gallery.splice(0, gallery.length, ...added.images);
++            if (added.skipped) alert('画像は10枚までです。超えた分は追加していません。');
+             paint();
+           } finally {
+             fileInput.disabled = false;
+@@ -788,7 +813,7 @@
+               <label style="margin-top:0.6rem;">画像ファイルを追加（複数選択できます）
+                 <input type="file" id="img-file" multiple accept="image/jpeg,image/png,image/webp,image/*" />
+               </label>
+-              <p style="font-size:11px;color:#6b6860;margin-top:0.35rem;">サイズや縦横比が違っていても、そのままで登録できます。先頭がメイン画像です。</p>
++              <p style="font-size:11px;color:#6b6860;margin-top:0.35rem;">サイズや縦横比が違っていても、そのままで登録できます。複数ファイルの並びはクリックした順ではなくファイル名順になることがあります。保存前に「メインにする」「前へ」「次へ」で順番を確定してください。先頭がメイン画像です。</p>
+             </div>
+             <div class="check-row">
+               <label><input type="checkbox" name="reducedTax" ${p?.reducedTax ? 'checked' : ''} /> 軽減税率対象</label>
+--- src/js/catalog-store.js
++++ src/js/catalog-store.js
+@@ -453,12 +453,41 @@
+     return job;
+   }
+ 
++  function isShopVisible(product) {
++    return Boolean(product) && product.published !== false && String(product.image || '').trim();
++  }
++
++  function findShopProduct(products, key) {
++    const id = String(key || '').trim();
++    if (!id) return null;
++    const visible = (Array.isArray(products) ? products : []).filter(isShopVisible);
++    return (
++      visible.find((product) => String(product.id) === id) ||
++      visible.find((product) => String(product.applicationNo || '').trim() === id) ||
++      null
++    );
++  }
++
+   async function loadProduct(id) {
+     const key = String(id || '').trim();
+     if (!key) return null;
+     try {
+       const loaded = await remote('GET', '/api/catalog?id=' + encodeURIComponent(key));
+-      return loaded.product || null;
++      if (
++        loaded &&
++        isShopVisible(loaded.product) &&
++        (String(loaded.product.id) === key || String(loaded.product.applicationNo || '').trim() === key)
++      ) {
++        return loaded.product;
++      }
++      const fromDetail = findShopProduct(loaded && loaded.products, key);
++      if (fromDetail) return fromDetail;
++    } catch (err) {
++      /* 詳細用の id が無くても、ショップと同じ一覧から解決する */
++    }
++    try {
++      const listed = await remote('GET', '/api/catalog');
++      return findShopProduct(listed && listed.products, key);
+     } catch (err) {
+       return null;
+     }
+@@ -663,16 +692,26 @@
+     return dedupeImages(list);
+   }
+ 
+-  /* 初期画像は、保存済みの写真より前に出さない。写真が無いときだけ初期画像を使う。 */
++  /* 写真と初期画像が混在するときも、編集画面で決めた順を動かさない。
++     初期画像だけの送信で、以前の実写真がある場合だけそれを前に戻す。 */
+   function arrangeProductImages(prev, nextList) {
+     const next = dedupeImages(nextList);
+     const nextCustom = next.filter((src) => !isPlaceholderImage(src));
+-    if (nextCustom.length) return dedupeImages(nextCustom.concat(next.filter(isPlaceholderImage)));
++    if (nextCustom.length) return next;
+     const prevCustom = storedImages(prev).filter((src) => !isPlaceholderImage(src));
+     if (!prevCustom.length) return next;
+     return dedupeImages(prevCustom.concat(next.filter(isPlaceholderImage)));
+   }
+ 
++  function sameGallery(sent, product) {
++    const got = storedImages(product);
++    if (got.length !== sent.length) return false;
++    for (let i = 0; i < sent.length; i += 1) {
++      if (got[i] !== sent[i]) return false;
++    }
++    return true;
++  }
++
+   function normalizeProductImages(data, prev, image) {
+     const list = [];
+     const push = (src) => {
+@@ -683,6 +722,7 @@
+     if (Array.isArray(data.images)) {
+       data.images.forEach(push);
+       if (!list.length) push(image);
++      return dedupeImages(list);
+     } else {
+       if (image) push(image);
+       if (prev && Array.isArray(prev.images)) prev.images.forEach(push);
+@@ -747,7 +787,16 @@
+     }
+     const saved = await persistInquiry(ROW.product + item.id, packed);
+     const galleryOnly = !!(saved && saved.galleryOnly);
+-    const stored = saved && saved.item ? { ...saved.item } : item;
++    let confirmed = null;
++    try {
++      confirmed = await loadAdminProduct(item.id);
++    } catch (err) {
++      throw new Error('保存後の写真を読み戻せませんでした。並びが保存されたとは表示しません。');
++    }
++    if (!confirmed || !sameGallery(images, confirmed)) {
++      throw new Error('写真の順番は保存されていません。再読み込みしても、選んだメイン画像のままではありません。');
++    }
++    const stored = { ...confirmed };
+     delete stored.galleryOnly;
+     await forgetDeleted('product', stored.id);
+     const next = read(KEYS.products);
+--- src/js/product-seo.js
++++ src/js/product-seo.js
+@@ -117,13 +117,7 @@
+     }
+     push(item && item.image);
+     if (item && Array.isArray(item.images)) item.images.forEach(push);
+-    var custom = [];
+-    var initial = [];
+-    list.forEach(function (src) {
+-      if (isInitialImage(src)) initial.push(src);
+-      else custom.push(src);
+-    });
+-    return custom.concat(initial);
++    return list;
+   }
+ 
+   function sharePath(origin, src) {
