@@ -361,17 +361,25 @@ window.HenreiyaCatalog = (function () {
 
   function writeAdminCache(etag, loaded) {
     try {
+      if (!loaded || !Array.isArray(loaded.products) || loaded.products.length === 0) {
+        sessionStorage.removeItem(ADMIN_CACHE_KEY);
+        return;
+      }
       sessionStorage.setItem(
         ADMIN_CACHE_KEY,
         JSON.stringify({
           etag: etag || '',
-          products: loaded.products || [],
-          categories: loaded.categories || [],
-          suppliers: loaded.suppliers || [],
+          products: loaded.products,
+          categories: Array.isArray(loaded.categories) ? loaded.categories : [],
+          suppliers: Array.isArray(loaded.suppliers) ? loaded.suppliers : [],
         })
       );
     } catch (err) {
-      /* 容量不足のときは毎回取得する */
+      try {
+        sessionStorage.removeItem(ADMIN_CACHE_KEY);
+      } catch (removeErr) {
+        /* 容量不足の控えは残さず、次回は通信で取り直す */
+      }
     }
   }
 
@@ -384,14 +392,23 @@ window.HenreiyaCatalog = (function () {
     });
   }
 
-  function cacheHasRows(cached) {
-    return Boolean(cached) && (cached.products.length > 0 || cached.categories.length > 0);
+  function cacheHasProducts(cached) {
+    return Boolean(cached) && Array.isArray(cached.products) && cached.products.length > 0 && Array.isArray(cached.categories);
   }
 
   function primeAdminCache() {
     if (!isAdminPage()) return false;
     const cached = readAdminCache();
-    if (!cacheHasRows(cached)) return false;
+    if (!cacheHasProducts(cached)) {
+      if (cached) {
+        try {
+          sessionStorage.removeItem(ADMIN_CACHE_KEY);
+        } catch (err) {
+          /* 空の商品控えは表示にも再検証にも使わない */
+        }
+      }
+      return false;
+    }
     applyCatalog(cached, false);
     return true;
   }
@@ -418,14 +435,25 @@ window.HenreiyaCatalog = (function () {
     fresh = false;
     const admin = isAdminPage();
     const url = admin ? '/api/admin/catalog' : '/api/catalog';
-    const cached = admin ? readAdminCache() : readPublicCache();
+    let cached = admin ? readAdminCache() : readPublicCache();
+    if (admin && cached && !cacheHasProducts(cached)) {
+      try {
+        sessionStorage.removeItem(ADMIN_CACHE_KEY);
+      } catch (err) {
+        /* 商品が無い控えでは 304 しない */
+      }
+      cached = null;
+    }
     const job = (async () => {
       try {
         const headers = {};
-        if (cacheHasRows(cached) && cached.etag) headers['If-None-Match'] = cached.etag;
+        if (cacheHasProducts(cached) && cached.etag) headers['If-None-Match'] = cached.etag;
         const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: headers });
         if (token !== epoch) return { ok: true, source: 'database', unchanged: true, superseded: true };
-        if (res.status === 304 && cacheHasRows(cached)) {
+        if (res.status === 304) {
+          if (!cacheHasProducts(cached)) {
+            throw new Error('商品一覧を再取得できませんでした。空の一覧では上書きしません。');
+          }
           applyCatalog(cached, true);
           return { ok: true, source: 'database', unchanged: true };
         }

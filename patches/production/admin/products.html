@@ -159,7 +159,7 @@
   <script src="../js/sheets-config.js"></script>
   <script src="../js/admin-store.js?v=20261021b"></script>
   <script src="../js/catalog-seed.js?v=20261005m"></script>
-  <script src="../js/catalog-store.js?v=20261104a"></script>
+  <script src="../js/catalog-store.js?v=20261109a"></script>
   <script src="../js/shipping-calc.js?v=20261104e"></script>
   <script src="../js/image-prepare.js?v=20261010c"></script>
   <script src="../js/admin-ui.js?v=20261105k"></script>
@@ -1689,7 +1689,16 @@
         .then((result) => {
           if (result && result.superseded) return;
           if (result && result.ok === false) {
-            if (!hadCache) notify(result.error || '商品一覧を読み込めませんでした。', true);
+            const message = (result && result.error) || '商品一覧を読み込めませんでした。';
+            notify(message, true);
+            if (!HenreiyaCatalog.getProducts(true).length) {
+              const label = document.getElementById('product-page-label');
+              const tbody = document.querySelector('#table-products tbody');
+              if (label) label.textContent = '読み込めません';
+              if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">' + esc(message) + '</td></tr>';
+              }
+            }
             return;
           }
           if (result && result.unchanged && hadCache) return;
