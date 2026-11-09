@@ -384,18 +384,29 @@ window.HenreiyaCatalog = (function () {
     });
   }
 
+  function cacheHasRows(cached) {
+    return Boolean(cached) && (cached.products.length > 0 || cached.categories.length > 0);
+  }
+
   function primeAdminCache() {
     if (!isAdminPage()) return false;
     const cached = readAdminCache();
-    if (!cached) return false;
+    if (!cacheHasRows(cached)) return false;
     applyCatalog(cached, false);
     return true;
   }
 
+  function catalogResponseUsable(loaded) {
+    return Boolean(loaded) && loaded.ok === true && Array.isArray(loaded.products) && Array.isArray(loaded.categories);
+  }
+
   function applyCatalog(loaded, confirm) {
-    write(KEYS.products, loaded.products || []);
-    write(KEYS.categories, loaded.categories || []);
-    write(KEYS.suppliers, loaded.suppliers || []);
+    if (!loaded || !Array.isArray(loaded.products) || !Array.isArray(loaded.categories)) {
+      throw new Error('商品一覧の応答が不完全です。空の一覧では上書きしません。');
+    }
+    write(KEYS.products, loaded.products);
+    write(KEYS.categories, loaded.categories);
+    write(KEYS.suppliers, Array.isArray(loaded.suppliers) ? loaded.suppliers : []);
     writeDeleted({ products: [], categories: [], suppliers: [] });
     fresh = confirm !== false;
     clearLegacyCache();
@@ -411,21 +422,21 @@ window.HenreiyaCatalog = (function () {
     const job = (async () => {
       try {
         const headers = {};
-        if (cached && cached.etag) headers['If-None-Match'] = cached.etag;
-        const res = await fetch(url, { method: 'GET', credentials: 'same-origin', headers: headers });
+        if (cacheHasRows(cached) && cached.etag) headers['If-None-Match'] = cached.etag;
+        const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: headers });
         if (token !== epoch) return { ok: true, source: 'database', unchanged: true, superseded: true };
-        if (res.status === 304 && cached) {
+        if (res.status === 304 && cacheHasRows(cached)) {
           applyCatalog(cached, true);
           return { ok: true, source: 'database', unchanged: true };
         }
-        let loaded = {};
+        let loaded = null;
         try {
           loaded = await res.json();
         } catch (err) {
-          loaded = {};
+          loaded = null;
         }
-        if (!res.ok || !loaded || loaded.ok === false) {
-          throw new Error((loaded && loaded.error) || '商品を読み込めませんでした。');
+        if (!res.ok || !catalogResponseUsable(loaded)) {
+          throw new Error((loaded && loaded.error) || '商品一覧を読み込めませんでした。空の一覧では上書きしません。');
         }
         if (token !== epoch) return { ok: true, source: 'database', unchanged: true, superseded: true };
         applyCatalog(loaded, true);
@@ -1102,6 +1113,7 @@ window.HenreiyaCatalog = (function () {
       return fresh;
     },
     getRanking,
+    catalogResponseUsable,
     rememberView,
     IMAGE_PRESETS,
     isPlaceholderImage,
